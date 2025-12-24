@@ -1,0 +1,150 @@
+/* --- 课程进度卡片（大卡片，例如在 welcome.html 中可能使用） --- */
+.book-card {
+    background-color: var(--card-bg, #fff);
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    text-align: left;
+    transition: background-color 0.3s;
+}
+
+.book-card .image-rocket {
+    width: 150px;
+    height: 150px;
+    object-fit: contain;
+    margin-right: 30px;
+}
+
+/* --- 列表容器修改为网格布局 (用于 #learning-list 和 #all-list) --- */
+#learning-list, #all-list {
+    /* 移除默认的列表样式 */
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    
+    /* 核心：使用 Grid 布局创建自适应三列卡片 */
+    display: grid;
+    /* auto-fit: 自动适应列数，minmax(280px, 1fr): 每列最小280px，最大占满可用空间 */
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    justify-content: flex-start; /* 确保项目从左侧开始排列 */
+    gap: 30px; /* 卡片之间的间距 */
+    margin-top: 20px;
+}
+
+/* --- 列表项/小卡片 样式 (实现 image.jpg 效果的关键) --- */
+#learning-list > li, #all-list > li {
+    background-color: var(--card-bg, #fff);
+    border-radius: 10px;
+    border: 1px solid var(--border-color, #eee); /* 浅灰色边框 */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); /* 阴影 */
+    overflow: hidden; /* 关键：确保图片和内容不会溢出卡片圆角 */
+    transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s, border-color 0.3s;
+    cursor: pointer;
+}
+
+#learning-list > li:hover, #all-list > li:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* 课程图片区域容器 */
+.book-card-image {
+    width: 100%;
+    height: 200px; /* **关键：固定图片显示高度** */
+    overflow: hidden;
+}
+
+/* 实际图片元素 */
+.book-card-image img {
+    width: 100%;
+    height: 100%;
+    /* **关键：图片将覆盖整个容器区域，超出的部分被裁剪** */
+    object-fit: cover; 
+    object-position: 50% 0;
+}
+
+/* 卡片内容区域 */
+.card-content {
+    padding: 15px 20px 20px 20px;
+    text-align: left;
+}
+
+.card-content h3 {
+    font-size: 1.2em;
+    color: var(--text-color, #333);
+    margin: 0 0 5px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis; /* 标题过长时显示省略号 */
+}
+
+.card-content .description {
+    font-size: 0.9em;
+    color: var(--text-color, #888);
+    opacity: 0.8;
+    line-height: 1.4;
+    height: 2.8em; /* 限制两行描述 (1.4em * 2) */
+    overflow: hidden;
+    margin: 0 0 15px 0;
+}
+
+/* --- 进度条样式 (用于“正在学习”卡片) --- */
+.progress-bar-container {
+    margin-top: 15px;
+}
+
+.progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9em;
+    color: var(--text-color, #555);
+    margin-bottom: 5px;
+}
+
+.progress-bar {
+    background-color: var(--border-color, #eee);
+    border-radius: 5px;
+    height: 10px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: #e59f42; 
+    border-radius: 5px;
+}
+
+.card-button {
+    background-color: #e59f42;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 15px; /* 调整为卡片内更紧凑的按钮 */
+    font-size: 0.9em;
+    cursor: pointer;
+    outline: none;
+    margin-top: 15px;
+    transition: background-color 0.3s;
+    display: inline-block;
+    text-decoration: none;
+}
+
+.card-button:hover {
+    background-color: #d88f32;
+}
+
+/* 【新增】: 已添加课程的绿勾样式 */
+.subscribed-check {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: #28a745; /* 绿色 */
+    color: white;
+    font-size: 0.8em;
+    font-weight: bold;
+    padding: 4px 8px;
+    border-radius: 5px;
+    z-index: 2; /* 确保在图片上层 */
+}

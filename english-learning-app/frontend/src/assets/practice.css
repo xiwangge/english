@@ -1,0 +1,330 @@
+/* public/style/practice.css */
+
+/* --- 基础布局 --- */
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: var(--bg-color, #fff);
+    color: var(--text-color, #333);
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.practice-container {
+    display: flex;
+    flex-direction: column;
+    /* 【修正】: 将 "height" 改为 "min-height" */
+    min-height: 90vh; /* 确保容器至少占满整个视口 */
+}
+
+/* --- 1. 顶部栏 --- */
+.practice-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--border-color, #f0f0f0);
+    position: relative;
+    flex-shrink: 0; /* 防止页眉被压缩 */
+}
+
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    font-size: 1.2em;
+    font-weight: 500;
+}
+.menu-icon { cursor: pointer; }
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.display-toggles {
+    display: flex;
+    gap: 15px;
+    font-size: 0.9em;
+    color: #555;
+}
+.practice-container.dark-mode .display-toggles {
+    color: #a0aec0;
+}
+.display-toggles label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+
+.header-right .icon {
+    font-size: 1.3em;
+    color: #555;
+    cursor: pointer;
+}
+.practice-container.dark-mode .header-right .icon {
+    color: #a0aec0;
+}
+
+/* 顶部进度条 */
+.progress-bar-top-container {
+    position: absolute;
+    bottom: -1px; /* 覆盖在边框上 */
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background-color: var(--border-color, #f0f0f0); /* 进度条底色 */
+}
+
+.progress-bar-fill {
+    width: 30%; /* 示例进度 */
+    height: 100%;
+    background-color: #e59f42; /* 橙色进度 */
+    transition: width 0.3s ease;
+}
+
+/* --- 2. 主内容区域 --- */
+.practice-main {
+    flex-grow: 1; /* 占据剩余所有空间 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 20px 80px; /* 为左右箭头留出空间 */
+    box-sizing: border-box;
+}
+
+.nav-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 2em;
+    color: #ccc;
+    cursor: pointer;
+    padding: 10px;
+    transition: color 0.2s;
+}
+.nav-arrow:hover {
+    color: var(--text-color, #333);
+}
+#prev-sentence { left: 20px; }
+#next-sentence { right: 20px; }
+
+.content-wrapper {
+    width: 100%;
+    max-width: 800px;
+    text-align: center;
+}
+
+.center-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 30px;
+    font-size: 0.9em;
+}
+.replay-button {
+    background: var(--border-color, #f0f0f0);
+    border: none;
+    padding: 8px 15px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: 500;
+}
+.practice-container.dark-mode .replay-button {
+    color: var(--text-color);
+}
+.timer-display {
+    color: #888;
+}
+
+/* 中文和音标 */
+.sentence-display {
+    margin-bottom: 40px;
+}
+#chinese-text {
+    font-size: 2.8em;
+    font-weight: 500;
+    color: var(--text-color, #333);
+    margin: 0;
+}
+#phonetic-text {
+    font-size: 1.5em;
+    color: #888;
+    margin: 10px 0 0 0;
+    font-weight: 400;
+}
+.practice-container.dark-mode #phonetic-text {
+    color: #a0aec0;
+}
+
+.phonetic-container {
+    display: flex;
+    justify-content: center;
+    gap: 10px; /* 与 .word-input-container 保持一致 */
+    margin-top: 10px;
+    height: 30px; /* 给定一个高度 */
+}
+
+.phonetic-word {
+    font-size: 1.5em;
+    color: #888;
+    font-weight: 400;
+    padding: 0 5px; /* 与 .word-placeholder 保持一致 */
+    text-align: center;
+    line-height: 30px;
+}
+.practice-container.dark-mode .phonetic-word {
+    color: #a0aec0;
+}
+
+/* 单词输入横线 */
+.word-input-container {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap; /* 允许长句子换行 */
+    gap: 10px; /* 单词间的间距 */
+}
+
+.word-placeholder {
+    display: inline-block;
+    border-bottom: 4px solid #ccc; /* 灰色横线 */
+    height: 40px; /* 高度 */
+    font-size: 1.8em;
+    font-weight: 500;
+    line-height: 40px;
+    text-align: center;
+    padding: 0 5px;
+    color: #e59f42; /* 输入的单词颜色 (橙色) */
+    cursor: text;
+    transition: border-color 0.2s;
+    min-width: 3ch; /* 设置最小宽度为3个字符 */
+}
+.practice-container.dark-mode .word-placeholder {
+    border-bottom-color: #4a5568;
+}
+
+/* 在单词拼写模式下，确保即使没有内容也有下划线 */
+.word-placeholder.word-mode {
+    min-width: 5ch; /* 至少保持5个字符的宽度 */
+}
+
+.word-placeholder.active {
+    border-bottom-color: #e59f42; /* 黄色高亮 */
+}
+.practice-container.dark-mode .word-placeholder.active {
+    background-color: #2d3748;
+}
+
+.word-placeholder.wrong {
+            border-bottom: 4px solid red;
+            /* color: red; */ /* 保持默认文字颜色 */
+            /* background-color: #fff0f0; */ /* 移除背景色 */
+        }
+        .correct-answer-display {
+            font-size: 1.8em;
+            color: #28a745; /* 绿色 */
+            font-weight: bold;
+            padding: 10px;
+            text-align: center;
+        }
+        .practice-container.dark-mode .correct-answer-display {
+            color: #48bb78; /* 稍亮的绿色 */
+        }
+        
+/* --- 3. 底部快捷键栏 --- */
+.practice-footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 25px;
+    padding: 15px 20px;
+    background-color: var(--bg-color, #f9f9f9); /* 调整为 var(--bg-color) 或其他浅色变量 */
+    border-top: 1px solid var(--border-color, #f0f0f0);
+    flex-shrink: 0; /* 防止页脚被压缩 */
+}
+.practice-container.dark-mode .practice-footer {
+    background-color: #1a202c; /* 或者使用 var(--bg-color) */
+}
+
+.hotkey-group {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.85em;
+    color: #555;
+}
+.practice-container.dark-mode .hotkey-group {
+    color: #a0aec0;
+}
+
+.hotkey-group kbd {
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-family: monospace;
+    font-size: 1.1em;
+}
+html.dark .hotkey-group kbd {
+    background-color: #2d3748;
+    border-color: #4a5568;
+    color: #e2e8f0;
+}
+
+/* 隐藏的输入框 */
+        #hidden-input {
+            position: absolute;
+            left: -9999px;
+            top: -9999px;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+
+/* --- 新增样式 --- */ 
+        
+        /* 错误时抖动 */
+        .shake {
+            animation: shake 0.5s ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-10px); }
+            40%, 80% { transform: translateX(10px); }
+        }
+.word-group {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0 2px; /* 保持单词间的水平间距 */
+    vertical-align: top; /* 确保换行时顶部对齐 */
+}
+
+.word-group .phonetic-word {
+    height: 1.5em; /* 给音标一个固定的高度 */
+    line-height: 1.5em;
+}
+
+.word-group .word-placeholder {
+    min-height: 1.5em; /* 确保输入框也有最小高度 */
+    line-height: 1.5em;
+}
+/* 新增：单词模式下的特定布局 */
+.word-mode-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px; /* 音标和输入框之间的垂直间距 */
+}
+
+.word-placeholders-wrapper {
+    display: flex;
+    justify-content: center;
+    gap: 10px; /* 三个输入框之间的水平间距 */
+}

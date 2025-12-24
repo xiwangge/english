@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>课程维护</title>
+    <style>
+        /* --- 基础样式与布局 --- */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #fcf6ed; /* 浅米色背景，与之前的页面保持一致 */
+            margin: 0;
+            padding: 40px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 2em;
+            margin-bottom: 30px;
+            color: #333;
+            font-weight: normal;
+        }
+        
+        h2 {
+            font-size: 1.5em;
+            margin-top: 40px;
+            margin-bottom: 25px;
+            color: #333;
+            font-weight: bold;
+        }
+
+        /* --- 卡片容器样式 --- */
+        .maintenance-card {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            margin-bottom: 30px;
+        }
+
+        /* --- 表单布局（两栏） --- */
+        .form-section {
+            display: flex;
+            gap: 30px;
+        }
+
+        .form-left, .form-right {
+            flex: 1;
+        }
+        
+        /* --- 基础表素 --- */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            color: #555;
+            margin-bottom: 8px;
+        }
+
+        input[type="text"], textarea, select {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 1em;
+            outline: none;
+            transition: border-color 0.2s;
+            background-color: #f9f9f9;
+        }
+        
+        select {
+            appearance: none; /* 移除默认下拉箭头 */
+            background-image: url('data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><path fill="%23888" d="M4.516 7.548c0.436-0.446 1.043-0.481 1.576 0L10 11.444l3.908-3.93c0.533-0.481 1.14-0.446 1.576 0 0.436 0.446 0.408 1.196 0 1.615l-4.508 4.54c-0.372 0.373-0.978 0.373-1.35 0l-4.508-4.54c-0.408-0.419-0.436-1.169 0-1.615z"/></svg>');
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+        }
+
+        input[type="text"]:focus, textarea:focus {
+            border-color: #e59f42;
+            background-color: #fff;
+        }
+        
+        /* --- 辅助说明文字 --- */
+        .form-group span {
+            display: block;
+            font-size: 0.85em;
+            color: #aaa;
+            margin-top: 5px;
+        }
+        
+        /* --- 教材封面上传区域 --- */
+        .cover-upload-area {
+            height: 250px; /* 模拟图片中的高度 */
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            cursor: pointer;
+            color: #888;
+            margin-top: 30px; /* 与 label 对齐 */
+        }
+        
+        /* --- 按钮样式 --- */
+        .save-button {
+            background-color: #e59f42; 
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 25px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            outline: none;
+        }
+
+        .save-button:hover {
+            background-color: #d88f32;
+        }
+
+        /* --- 按钮容器 - 新增教材 --- */
+        .save-button-container {
+            text-align: right;
+            margin-top: 30px;
+        }
+        
+        /* --- 批量添加区域布局 --- */
+        .batch-add-section {
+            display: flex;
+            gap: 30px;
+            margin-top: 20px;
+        }
+        
+        .batch-add-card {
+            flex: 1;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+            border: 1px solid #eee;
+        }
+        
+        .batch-add-card h3 {
+            font-size: 1.2em;
+            margin-top: 0;
+            margin-bottom: 5px;
+        }
+
+        .batch-add-card span {
+            font-size: 0.85em;
+            color: #888;
+            display: block;
+            margin-bottom: 15px;
+        }
+
+        .batch-add-card textarea {
+            min-height: 150px;
+            resize: vertical;
+        }
+        
+        .batch-add-card .save-button {
+            width: 100%;
+            margin-top: 15px;
+        }
+
+        #bookList ul {
+                    list-style: none;
+                    padding: 0;
+                }
+                
+                #bookList li {
+                    padding: 8px 12px;
+                    cursor: pointer;
+                }
+                
+                #bookList li:nth-child(odd) {
+                    background-color: #f9f9f9; /* 隔行浅灰色 */
+                }
+                
+                #bookList li:hover {
+                    background-color: #e5e5e5; /* 鼠标悬停颜色 */
+                }
+                
+                #bookList li.selected {
+                    background-color: #cce5ff; /* 选中行高亮 */
+                }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>课程维护</h1>
+
+        <div class="maintenance-card">
+            <h2>查询书籍</h2>
+            <div class="form-group">
+                <label for="searchBookName">书籍名称</label>
+                <input type="text" id="searchBookName" placeholder="请输入书籍名称">
+                <button class="save-button" onclick="searchBook()">查询</button>
+            </div>
+            <div id="bookList">
+                <!-- 书籍列表显示在这里 -->
+            </div>
+        </div>
+
+        <div class="maintenance-card">
+            <h2>书籍维护</h2>
+            <div class="form-section">
+                <div class="form-left">
+                    <div class="form-group">
+                        <label for="bookName">书籍名称</label>
+                        <input type="text" id="bookName" placeholder="如：人教版新起点">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edition">版本</label>
+                        <input type="text" id="edition" placeholder="如：2013年审定">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="publisher">出版社</label>
+                        <input type="text" id="publisher" placeholder="如：人民教育出版社">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="description">辅助说明</label>
+                        <textarea id="description" rows="4" placeholder="例如：书籍特点、适用对象等"></textarea>
+                    </div>
+                </div>
+
+                <div class="form-right">
+                    <label for="coverFile">书籍封面</label>
+                    <div class="cover-upload-area" id="coverUploadArea">
+                        点击或拖拽上传
+                        <input type="file" id="coverFile" style="display: none;" accept="image/*">
+                    </div>
+                    <img id="coverImageDisplay" src="" alt="封面图片" style="max-width: 200px; margin-top: 10px; display: none;">
+                </div>
+                <div class="form-group">
+                    <label for="isFree">是否免费</label>
+                    <input type="checkbox" id="isFree">
+                </div>
+                <div class="form-group">
+                    <label for="isOnShelf">是否上架</label>
+                    <input type="checkbox" id="isOnShelf" checked>
+                </div>
+                <div class="form-group">
+                    <label for="studyTime">学习时间</label>
+                    <input type="number" id="studyTime" value="0">
+                </div>
+                <div class="form-group">
+                    <label for="credits">每章节学分</label>
+                    <input type="number" id="credits" value="0">
+                </div>
+            </div>
+            
+            <div class="save-button-container">
+                <button class="save-button" onclick="saveBook()">保存书籍</button>
+            </div>
+            <div class="save-button-container">
+                <button class="save-button" onclick="batchUpdateWords()">批量更新单词</button>
+                <button class="save-button" onclick="batchUpdateSentences()">批量更新句子</button>
+            </div>
+        </div>
+        
+        <div class="maintenance-card">
+            <h2>课程内容维护</h2>
+
+            <div class="form-section">
+                <div class="form-left" style="flex: 1;">
+                    <div class="form-group">
+                        <label for="selectBook">选择书籍</label>
+                        <select id="selectBook" style="width: 100%;">
+                            <option value="">请选择书籍</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-left" style="flex: 1;">
+                    <div class="form-group">
+                        <label for="uint"></label>
+                        <input type="text" id="uint" placeholder="新增章节" style="width: 100%;">
+                        <select id="selectUint" style="width: 100%;">
+                            <option value="">请选择</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="batch-add-section">
+                <div class="batch-add-card">
+                    <h3>批量添加单词</h3>
+                    <span>每行一个单词</span>
+                    <textarea id="batchWords" rows="8" placeholder="apple&#10;banana&#10;cherry"></textarea>
+                </div>
+
+                
+            </div>
+
+            <div class="batch-add-section">
+                <div class="batch-add-card">
+                    <h3>批量添加句子</h3>
+                    <span>每行一个句子，以句号结尾。</span>
+                    <textarea id="batchSentences" rows="8" placeholder="This is an apple.&#10;That is a banana.&#10;These are cherries."></textarea>
+                    <button class="save-button" onclick="saveUint()">保存</button>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    <script>
+        // 获取上传区域和文件 input 元素
+        const coverUploadArea = document.getElementById('coverUploadArea');
+        const coverFile = document.getElementById('coverFile');
+
+        // 模拟点击上传区域触发文件选择
+        coverUploadArea.addEventListener('click', function() {
+            coverFile.click();
+        });
+
+        // 监听文件选择事件
+        coverFile.addEventListener('change', function() {
+            if (coverFile.files.length > 0) {
+                const file = coverFile.files[0];
+                // 在上传区域显示文件名
+                coverUploadArea.textContent = file.name;
+                 // 预览图片
+                 const reader = new FileReader();
+                 reader.onload = function(e) {
+                     document.getElementById('coverImageDisplay').src = '.' + e.target.result;
+                     document.getElementById('coverImageDisplay').style.display = 'block';
+                 }
+                 reader.readAsDataURL(file);
+            } else {
+                coverUploadArea.textContent = '点击或拖拽上传';
+            }
+        });
+
+        // 保存书籍
+        async function saveBook() {
+            const bookName = document.getElementById('bookName').value;
+            const edition = document.getElementById('edition').value;
+            const publisher = document.getElementById('publisher').value;
+            const description = document.getElementById('description').value;
+            const file = coverFile.files[0];
+            const isFree = document.getElementById('isFree').checked;
+            const isOnShelf = document.getElementById('isOnShelf').checked;
+            const studyTime = document.getElementById('studyTime').value;
+            const credits = document.getElementById('credits').value;
+
+            if (!bookName || !edition || !publisher || !description ) {
+                alert('请填写所有信息并上传封面');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('bookName', bookName);
+            formData.append('edition', edition);
+            formData.append('publisher', publisher);
+            formData.append('description', description);
+            formData.append('cover', file);
+            formData.append('isFree', isFree);
+            formData.append('isOnShelf', isOnShelf);
+            formData.append('studyTime', studyTime);
+            formData.append('credits', credits);
+
+            try {
+                const response = await fetch('/api/book/create', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('书籍保存成功!');
+                } else {
+                    alert('书籍保存失败：' + data.message);
+                }
+            } catch (error) {
+                console.error('保存书籍失败:', error);
+                alert('保存书籍失败，请稍后重试');
+            }
+        }
+
+        // 获取书籍列表
+        async function getBookList() {
+            try {
+                const response = await fetch('/api/book/list');
+                const data = await response.json();
+
+                if (response.ok) {
+                    const selectBook = document.getElementById('selectBook');
+                    data.forEach(book => {
+                        const option = document.createElement('option');
+                        option.value = book._id;
+                        option.textContent = book.bookName;
+                        selectBook.appendChild(option);
+                    });
+                } else {
+                    alert('获取书籍列表失败：' + data.message);
+                }
+        
+            } catch (error) {
+                console.error('获取书籍列表失败:', error);
+                //alert('获取书籍列表失败，请稍后重试');
+            }
+        }
+
+        // 获取列表
+        async function getUintList(bookId) {
+            try {
+                const response = await fetch(`/api/book/getUints?bookId=${bookId}`);
+                const data = await response.json();
+                if (response.ok) {
+                    const selectUint = document.getElementById('selectUint');
+                    // 清空列表
+                    selectUint.innerHTML = '<option value="">请选择</option>';
+                    const unitData = {};
+                    data.forEach(unit => {
+                        const option = document.createElement('option');
+                        option.value = unit.unit; // 使用 unit.unit 作为 value
+                        option.textContent = unit.unit;
+                        selectUint.appendChild(option);
+
+                        unitData[unit.unit] = { // 使用 unit.unit 作为键
+                            words: unit.words,
+                            sentences: unit.sentences
+                        };
+                    });
+                    // 检查 unitData input 是否已存在
+                    let unitDataInput = document.getElementById('unitData');
+                    if (!unitDataInput) {
+                        // 如果不存在，则创建并添加到 body
+                        unitDataInput = document.createElement('input');
+                        unitDataInput.type = 'hidden';
+                        unitDataInput.id = 'unitData';
+                        document.body.appendChild(unitDataInput);
+                    }
+                    // 更新其值为最新的 unitData
+                    unitDataInput.value = JSON.stringify(unitData);
+
+                    console.log(unitData);
+                } else {
+                    alert('获取列表失败：' + data.message);
+                }
+            } catch (error) {
+                console.error('获取列表失败:', error);
+                alert('获取列表失败，请稍后重试');
+            }
+        }
+
+        // 查询书籍
+        async function searchBook() {
+            const bookName = document.getElementById('searchBookName').value;
+            try {
+                const url = '/api/book/search';
+                if (bookName) {
+                    url = url + '?bookName=' + bookName
+                }
+                const response = await fetch(url);
+                const data = await response.json();
+                if (response.ok) {
+                    const bookListDiv = document.getElementById('bookList');
+                    bookListDiv.innerHTML = ''; // 清空之前的列表
+
+                    if (data.length === 0) {
+                        bookListDiv.textContent = '未找到相关书籍';
+                    } else {
+                        const ul = document.createElement('ul');
+                        data.forEach(book => {
+                            const li = document.createElement('li');
+                            li.textContent = `${book.bookName} - ${book.edition} - ${book.publisher}`;
+                        li.addEventListener('click', () => {
+                                // 移除之前选中的高亮
+                                document.querySelectorAll('#bookList li.selected').forEach(el => el.classList.remove('selected'));
+                                // 当前行高亮
+                                li.classList.add('selected');
+                                fillBookInfo(book);
+                            });
+                        ul.appendChild(li);
+                    });
+                    bookListDiv.appendChild(ul);
+                    
+                    }
+                } else {
+                    alert('查询书籍失败：' + data.message);
+                }
+            } catch (error) {
+                console.error('查询书籍失败:', error);
+                alert('查询书籍失败，请稍后重试');
+            }
+    }
+
+        // 填充书籍信息到表单
+        let currentBookId = null;
+        function fillBookInfo(book) {
+            currentBookId = book._id;
+            document.getElementById('bookName').value = book.bookName;
+            document.getElementById('edition').value = book.edition;
+            document.getElementById('publisher').value = book.publisher;
+            document.getElementById('description').value = book.description;
+            document.getElementById('isFree').checked = book.isFree;
+
+            document.getElementById('isOnShelf').checked = book.isOnShelf;
+            document.getElementById('studyTime').value = book.studyTime;
+            document.getElementById('credits').value = book.credits; // 填充学分
+            
+            // 显示封面图片
+            document.getElementById('coverImageDisplay').src = book.coverImage;
+            document.getElementById('coverImageDisplay').style.display = 'block';
+        }
+
+        let selectedBookId = null;
+    
+        // 监听书籍选择事件
+        document.getElementById('selectBook').addEventListener('change', function() {
+            const bookId = this.value;
+            getUintList(bookId);
+        });
+
+       // 监听选择事件
+       document.getElementById('selectUint').addEventListener('change', function() {
+           document.getElementById('uint').value = this.value;
+           const bookId = document.getElementById('selectBook').value;
+           const uint = this.value;
+
+           // 获取隐藏的 input 元素
+           const unitDataInput = document.getElementById('unitData');
+           if (!unitDataInput) {
+               console.warn('unitDataInput is not defined.');
+               return;
+           }
+
+           // 从 input 元素的 value 属性中解析 JSON 数据
+           const unitData = JSON.parse(unitDataInput.value);
+
+           if (!unitData[uint]) {
+               console.warn(`uintData[${uint}] is not defined.`);
+               return;
+           }
+
+           const words = unitData[uint].words;
+           const sentences = unitData[uint].sentences;
+
+           // 在这里添加代码以显示单词和句子
+           document.getElementById('batchWords').value = words ? words.map(word => word.text).join('\n') : '';
+           
+           // 【关键修正】
+           // 错误代码：sentences.map(sentence => sentence.sentence ? sentence.sentence.text : '')
+           // 正确代码：
+           document.getElementById('batchSentences').value = sentences ? sentences.map(sentence => sentence.text).join('\n') : '';
+        });
+
+        // 页面加载完成后获取书籍列表
+        window.addEventListener('load', getBookList);
+
+        async function saveUint() {
+            const bookId = document.getElementById('selectBook').value;
+            const uint = document.getElementById('uint').value;
+            const words = document.getElementById('batchWords').value;
+            const sentences = document.getElementById('batchSentences').value;
+            const wordArray = words.split('\n').filter(t => t.trim() !== '');
+            const sentenceArray = sentences.split('\n').filter(t => t.trim() !== '');
+
+            if (!bookId || !uint) {
+                alert('请选择书籍、');
+                return;
+            }
+
+            const bookData = {
+                bookId: bookId,
+                units: [{
+                    uint: uint,
+                    words: wordArray,
+                    sentences: sentenceArray.map(sentence => ({ text: sentence }))
+                }]
+            };
+
+            try {
+                const response = await fetch('/api/book/createUnit', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(bookData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('课程内容保存成功!');
+                } else {
+                    alert('课程内容保存失败：' + data.message);
+                }
+            } catch (error) {
+                console.error('保存课程内容失败:', error);
+                alert('保存课程内容失败，请稍后重试');
+            }
+        }
+
+        async function batchUpdateWords() {
+            if (!currentBookId) {
+                alert('请选择书籍');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/book/batchUpdateWordsHybrid', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ bookId: currentBookId })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('批量更新单词成功!');
+                } else {
+                    alert('批量更新单词失败：' + data.message);
+                }
+            } catch (error) {
+                console.error('批量更新单词失败:', error);
+                alert('批量更新单词失败，请稍后重试');
+            }
+        }
+
+        async function batchUpdateSentences() {
+            if (!currentBookId) {
+                alert('请选择书籍');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/book/batchUpdateSentencesHybrid', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ bookId: currentBookId })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('批量更新句子成功!');
+                } else {
+                    alert('批量更新句子失败：' + data.message);
+                }
+            } catch (error) {
+                console.error('批量更新句子失败:', error);
+                alert('批量更新句子失败，请稍后重试');
+            }
+        }
+        
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,1174 @@
+<template>
+  <div class="practice-container" :class="{ 'dark-mode': userStore.theme === 'dark', 'zen-mode': isZenMode }">
+    
+    <header class="practice-header">
+        <div class="header-left">
+            <span class="menu-icon">☰</span>
+            <span id="lesson-title">con</span>
+        </div>
+        <div class="header-right">
+            <div class="display-toggles">
+                <label>
+                    <input type="checkbox" id="toggle-chinese" checked>
+                    显示中文
+                </label>
+                <label>
+                    <input type="checkbox" id="toggle-phonetic" checked>
+                    显示音标
+                </label>
+
+                <label>
+                    <input type="checkbox" id="toggle-threeTimes">
+                    单词拼写三遍
+                </label>
+            </div>
+
+            <button class="zen-btn" @click="toggleZenMode" :title="isZenMode ? '退出沉浸' : '进入沉浸模式'">
+                <svg v-if="!isZenMode" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+                </svg>
+                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M10 14l-7 7"/>
+                </svg>
+                <span class="btn-text">{{ isZenMode ? '退出' : '专注' }}</span>
+            </button>
+        </div>
+        <div class="progress-bar-top-container">
+            <div class="progress-bar-fill" id="lesson-progress" :style="{ width: progressPercentage + '%' }"></div>
+        </div>
+    </header>
+
+    <main class="practice-main">
+        <div class="nav-arrow" id="prev-sentence">‹</div>
+        
+        <div class="content-wrapper">
+            <div class="sentence-display">
+                <h1 id="chinese-text">它是我的的手提包</h1>
+                <audio id="audioPlayer" controls hidden></audio>
+            </div>
+
+            <!-- 【重构】将音标和输入框合并，以解决换行对齐问题 -->
+            <div class="word-input-container" id="word-input-area">
+                <template v-if="currentItem && !isAnswerShown">
+                    <!-- 句子模式 -->
+                    <template v-if="currentItem.type === 'sentence'">
+                        <div
+                            v-for="(word, index) in currentWords"
+                            :key="`sentence-word-${index}`"
+                            class="word-group"
+                            :style="{ 'min-width': (word.text ? word.text.length : 0) + 'ch' }"
+                        >
+                            <div class="phonetic-word" v-show="isPhoneticVisible">
+                                {{ word.phonetic === 'N/A' ? '😊' : (word.phonetic || '').replace(/\//g, '') || '&nbsp;' }}
+                            </div>
+                            <span
+                                class="word-placeholder"
+                                :class="{ active: index === currentWordIndex, wrong: isWordWrong(index) }"
+                                @click="setActiveWord(index)"
+                            >{{ userInputs[activeItemIndex] && userInputs[activeItemIndex][index] }}</span>
+                        </div>
+                    </template>
+                    <!-- 单词模式 -->
+                    <template v-else-if="currentItem.type === 'word'">
+                        <div class="word-mode-container">
+                            <div class="phonetic-word" v-show="isPhoneticVisible">
+                                {{ currentItem.phonetic === 'N/A' ? '😊' : currentItem.phonetic || '&nbsp;' }}
+                            </div>
+                            <div class="word-placeholders-wrapper">
+                                <span
+                                    v-for="(word, index) in currentWords"
+                                    :key="`word-instance-${index}`"
+                                    class="word-placeholder"
+                                    :style="{ 'min-width': (word.text ? word.text.length : 0) + 'ch' }"
+                                    :class="{ active: index === currentWordIndex, wrong: isWordWrong(index) }"
+                                    @click="setActiveWord(index)"
+                                >{{ userInputs[activeItemIndex] && userInputs[activeItemIndex][index] }}</span>
+                            </div>
+                        </div>
+                    </template>
+                </template>
+                <!-- 正确答案显示区域 -->
+               <div v-if="isAnswerShown" class="correct-answer-display">
+                   <!-- 句子模式 -->
+                   <template v-if="currentItem.type === 'sentence' && wordAnalyses.length">
+                       <div class="word-with-pos" v-for="(analysis, index) in wordAnalyses" :key="`analysis-${index}`">
+                           <span class="word">{{ analysis.text }}</span>
+                           <span class="phonetic">{{ analysis.phonetic }}</span>
+                           <span class="pos" :class="getPosClass(analysis.pos)">{{ analysis.pos }}</span>
+                       </div>
+                   </template>
+                   
+                   <!-- 单词模式 -->
+                   <template v-else-if="currentItem.type === 'word'">
+                        <div class="word-with-pos">
+                           <!-- 加载音节时显示... -->
+                           <div v-if="loadingSyllables" class="loading">正在分析音节...</div>
+                           <!-- 显示音节 -->
+                           <div v-else class="syllables-container">
+                               <span v-for="(part, index) in syllables" :key="`syllable-${index}`" class="syllable-box">
+                                   {{ part }}
+                               </span>
+                           </div>
+                           <!-- 显示音标和词性 -->
+                            <span class="phonetic">{{ currentItem.phonetic === 'N/A' ? '😊' : currentItem.phonetic.replace(/\//g, '') }}</span>
+                            <span v-if="wordAnalyses.length" class="pos" :class="getPosClass(wordAnalyses[0].pos)">{{ wordAnalyses[0].pos }}</span>
+                       </div>
+                   </template>
+
+                   <!-- 其他或降级情况 -->
+                    <template v-else-if="!wordAnalyses.length">
+                         <div class="word-with-pos">
+                            <span class="word">{{ currentItem && currentItem.text }}</span>
+                            <span class="phonetic">{{ currentItem && (currentItem.phonetic === 'N/A' ? '😊' : currentItem.phonetic.replace(/\//g, '')) }}</span>
+                        </div>
+                    </template>
+               </div>
+            </div>
+        </div>
+        
+        <div class="nav-arrow" id="next-sentence">›</div>
+    </main>
+
+    <footer class="practice-footer">
+        <div class="hotkey-group">
+            <kbd>空格/→</kbd> <span>跳格</span>
+        </div>
+        <div class="hotkey-group">
+            <kbd>Shift</kbd><kbd>F</kbd><span>播放</span>
+        </div>
+        <!-- <div class="hotkey-group">
+            <kbd>Ctrl1</kbd> <kbd>Q</kbd> <span>生词</span>
+        </div> -->
+        <div class="hotkey-group">
+            <kbd>Enter</kbd> <span>提交</span>
+        </div>
+        <div class="hotkey-group">
+            <kbd>↑</kbd> <kbd>↓</kbd> <span>显示/隐藏答案</span>
+        </div>
+    </footer>
+</div>
+
+<input type="text" id="hidden-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+</template>
+
+<script setup>
+import { onMounted, onUnmounted, ref, computed, nextTick, watch, inject } from 'vue';
+import { useRoute } from 'vue-router';
+import nlp from 'compromise';
+import speechPlugin from 'compromise-speech';
+import { userStore } from '../store/user.js';
+
+// =================【新增代码开始】=================
+
+// 1. 沉浸模式状态
+const isZenMode = ref(false);
+
+const setHeaderBgColor = inject('setHeaderBgColor');
+    const updateHeaderColor = () => {
+        if (setHeaderBgColor) {
+            // 根据 theme 切换 Header 颜色
+            setHeaderBgColor(userStore.theme === 'dark' ? '#1a202c' : '#fff8f5');
+        }
+    };
+    
+// 4. 切换沉浸模式
+function toggleZenMode() {
+    isZenMode.value = !isZenMode.value;
+    updateHeaderColor(); // 切换时立即更新 Header 颜色
+}
+
+const route = useRoute();
+const { bookId } = route.query;
+const token = localStorage.getItem('token');
+
+// --- DOM Element Refs ---
+const titleEl = ref(null);
+const progressEl = ref(null);
+const chineseEl = ref(null);
+const hiddenInput = ref(null);
+const toggleChinese = ref(null);
+const togglePhonetic = ref(null);
+const toggleThreeTimes = ref(null);
+const contentWrapper = ref(null);
+const audioPlayer = ref(null);
+
+// --- Reactive State ---
+const practiceQueue = ref([]);
+const currentItemIndex = ref(0); // 作为“学习进度”索引
+const activeItemIndex = ref(0); // 作为用户当前正在“查看或操作”的索引
+const currentWordIndex = ref(0);
+const userInputs = ref([]);
+const isAnswerShown = ref(false);
+const isPhoneticVisible = ref(true); // 新增状态，控制音标可见性
+const isTransitioning = ref(false);
+const currentUnitId = ref(null);
+const currentBookId = ref(bookId);
+const wrongWords = ref(new Set());
+const currentUnitName = ref(null);
+const wordAnalyses = ref([]); // 新增：存储单词和其词性
+const bookCredits = ref(0);
+const syllables = ref([]); // 新增：存储音节
+const loadingSyllables = ref(false); // 新增：控制音节加载状态
+
+// --- Computed Properties ---
+const currentItem = computed(() => practiceQueue.value[activeItemIndex.value]);
+const currentWords = computed(() => {
+    const item = currentItem.value;
+    if (!item) return [];
+    if (item.type === 'word') {
+        // 【修正】确保单词练习也返回一个包含对象的数组，以便模板统一处理
+        const wordObject = { text: item.text, phonetic: item.phonetic };
+        return toggleThreeTimes.value?.checked ? [wordObject, wordObject, wordObject] : [wordObject];
+    } else if (item.type === 'sentence') {
+        // s.words 已经是完整的 Word 对象数组
+        return item.words || [];
+    }
+    return [];
+});
+
+const isWordWrong = (index) => {
+    return wrongWords.value.has(index);
+};
+
+function getPosClass(pos) {
+    switch (pos) {
+        case '名词':
+        case '缩写':
+            return 'pos-noun';
+        case '动词': return 'pos-verb';
+        case '形容词': return 'pos-adjective';
+        case '副词': return 'pos-adverb';
+        case '介词': return 'pos-preposition';
+        case '代词': return 'pos-pronoun';
+        default: return 'pos-other';
+    }
+}
+
+// --- Methods ---
+// --- 词性翻译 ---
+const posTranslations = {
+    Noun: '名词',
+    Verb: '动词',
+    Adjective: '形容词',
+    Adverb: '副词',
+    Preposition: '介词',
+    Conjunction: '连词',
+    Pronoun: '代词',
+    Determiner: '限定词',
+    Article: '冠词',
+    Interjection: '感叹词',
+    Value: '数值',
+    Acronym: '缩写',
+    // 可以根据需要添加更多翻译
+};
+
+function translatePos(tag) {
+    // compromise 会给出最具体的 tag，我们需要找到最匹配的通用分类
+    if (tag.includes('Acronym')) return posTranslations.Acronym;
+    if (tag.includes('Noun')) return posTranslations.Noun;
+    if (tag.includes('Verb')) return posTranslations.Verb;
+    if (tag.includes('Adjective')) return posTranslations.Adjective;
+    if (tag.includes('Adverb')) return posTranslations.Adverb;
+    if (tag.includes('Preposition')) return posTranslations.Preposition;
+    if (tag.includes('Conjunction')) return posTranslations.Conjunction;
+    if (tag.includes('Pronoun')) return posTranslations.Pronoun;
+    if (tag.includes('Determiner')) return posTranslations.Determiner;
+    if (tag.includes('Article')) return posTranslations.Article;
+    if (tag.includes('Interjection')) return posTranslations.Interjection;
+    if (tag.includes('Value')) return posTranslations.Value;
+    return tag; // 如果没有匹配，返回原始标签
+}
+
+
+function analyzeSentence(text) {
+    if (!text) return;
+
+    try {
+        const originalWords = currentItem.value.type === 'word'
+            ? [{ text: currentItem.value.text, phonetic: currentItem.value.phonetic }]
+            : [...(currentItem.value.words || [])];
+
+        // --- 方案二：智能处理缩写词 ---
+        const contractionMap = {
+            "what's": ["what", "is"], "it's": ["it", "is"], "don't": ["do", "not"], "doesn't": ["does", "not"],
+            "didn't": ["did", "not"], "can't": ["can", "not"], "won't": ["will", "not"], "isn't": ["is", "not"],
+            "aren't": ["are", "not"], "wasn't": ["was", "not"], "weren't": ["were", "not"], "haven't": ["have", "not"],
+            "hasn't": ["has", "not"], "hadn't": ["had", "not"], "i'm": ["i", "am"], "you're": ["you", "are"],
+            "we're": ["we", "are"], "they're": ["they", "are"], "he's": ["he", "is"], "she's": ["she", "is"]
+        };
+
+        // 1. 构建用于 compromise 分析的文本，并记录原始单词与分析后单词的映射关系
+        let textForNlp = '';
+        const mapping = []; // { originalIndex: 0, nlpTermCount: 2 }
+        
+        originalWords.forEach((word, index) => {
+            const wordText = word.text.toLowerCase();
+            if (contractionMap[wordText]) {
+                const expandedWords = contractionMap[wordText];
+                textForNlp += expandedWords.join(' ') + ' ';
+                mapping.push({ originalIndex: index, nlpTermCount: expandedWords.length });
+            } else {
+                textForNlp += word.text + ' ';
+                mapping.push({ originalIndex: index, nlpTermCount: 1 });
+            }
+        });
+
+        // 2. 执行 NLP 分析
+        const doc = nlp(textForNlp.trim());
+        const allTerms = doc.document.flat();
+        const finalAnalyses = [];
+        let termIndex = 0;
+
+        // 3. 重组分析结果
+        for (const mapInfo of mapping) {
+            const originalWord = originalWords[mapInfo.originalIndex];
+            let combinedPos = [];
+
+            for (let i = 0; i < mapInfo.nlpTermCount; i++) {
+                const term = allTerms[termIndex];
+                if (term) {
+                    const posTag = term.tags.values().next().value || 'N/A';
+                    const translatedPos = translatePos(posTag);
+                    // 避免重复添加 "not" 的词性，因为它通常是副词，意义不大
+                    if (translatedPos !== '副词' || mapInfo.nlpTermCount === 1) {
+                         combinedPos.push(translatedPos);
+                    }
+                }
+                termIndex++;
+            }
+            
+            finalAnalyses.push({
+                text: originalWord.text,
+                pos: combinedPos.join(' / ') || 'N/A',
+                phonetic: originalWord.phonetic === 'N/A' ? '😊' : (originalWord.phonetic || '').replace(/\//g, '')
+            });
+        }
+        
+        wordAnalyses.value = finalAnalyses;
+
+    } catch (error) {
+        console.error('NLP Analysis failed:', error);
+        // 出错时回退到无词性分析的模式，保证程序健壮性
+        wordAnalyses.value = (currentItem.value.words || []).map(word => ({
+            text: word.text,
+            pos: 'N/A',
+            phonetic: word.phonetic === 'N/A' ? '😊' : (word.phonetic || '').replace(/\//g, '')
+        }));
+    }
+}
+
+
+function setActiveWord(index) {
+    if (isTransitioning.value) return;
+    currentWordIndex.value = index;
+    isAnswerShown.value = false;
+    focusHiddenInput();
+}
+
+async function playSpeech(word) {
+    const text = word.trim();
+    if (!text) return;
+    const apiUrl = `http://43.173.248.180:4000/api/tts?text=${encodeURIComponent(text)}&lang=en`;
+    try {
+        const response = await fetch(apiUrl);
+        if (!response.ok) throw new Error(`Server responded with status ${response.status}`);
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        audioPlayer.value.src = audioUrl;
+        audioPlayer.value.play();
+    } catch (error) {
+        console.error('Error fetching audio:', error);
+        if (phoneticEl.value) phoneticEl.value.textContent = `播放失败: ${error.message}`;
+        throw error;
+    }
+}
+
+function setAndPlayAudio(url) {
+    if (url) {
+        if (audioPlayer.value.src !== url) {
+            audioPlayer.value.src = url;
+        }
+        audioPlayer.value.currentTime = 0; // 从头开始播放
+        audioPlayer.value.play().catch(error => console.error('音频播放失败:', error));
+    } else {
+        console.warn('播放失败：无效的音频URL。');
+    }
+}
+
+async function playCurrentAudio() {
+    const item = currentItem.value;
+    if (!item || !item.text) return;
+    try {
+        //speakurl 切换线路
+        setAndPlayAudio(item.speakUrl);
+        // setAndPlayAudio('http://43.173.248.180:4000/hello_welcome.mp3');
+        // await playSpeech(item.text);
+    } catch (primaryError) {
+        console.warn(`Primary TTS failed: ${primaryError.message}. Trying backup.`);
+        if (item.speakUrl) setAndPlayAudio(item.speakUrl);
+        else console.error('Backup failed: No speakUrl available.');
+    }
+}
+
+async function loadNextUnit() {
+    if (!currentBookId.value || !token) {
+        if(chineseEl.value) chineseEl.value.textContent = '错误：缺少 BookId 或用户 Token';
+        return;
+    }
+    try {
+        const response = await fetch(`/api/userBook/getNextUnit?bookId=${currentBookId.value}`, { headers: { 'Authorization': token } });
+        if (!response.ok) throw new Error(`获取单元失败: ${response.status}`);
+        const unit = await response.json();
+        currentUnitName.value = unit.unitName;
+        bookCredits.value = unit.bookCredits || 0;
+        
+        if (unit.message === '课程已全部完成') {
+            if(chineseEl.value) chineseEl.value.textContent = '🎉 恭喜您！已完成本书所有课程！';
+            practiceQueue.value = [];
+            return;
+        }
+        if (!unit.nextUnit || (!unit.words && !unit.sentences)) throw new Error('API 返回数据结构不完整');
+
+        currentUnitId.value = unit.nextUnit.unitId;
+        buildPracticeQueue(unit.words || [], unit.sentences || []);
+
+        if (practiceQueue.value.length === 0) {
+            await markUnitAsComplete();
+            return;
+        }
+
+        resetStateForNewUnit();
+        await nextTick();
+        renderUI();
+        playCurrentAudio();
+    } catch (error) {
+        console.error('加载数据失败:', error);
+        if(chineseEl.value) chineseEl.value.textContent = `加载失败: ${error.message}`;
+    }
+}
+
+function buildPracticeQueue(words, sentences) {
+    const newQueue = [];
+    words.forEach(w => newQueue.push({ type: 'word', ...w }));
+    sentences.forEach(s => {
+        // 【修正】直接使用从 API 获取的、已经 populate 好的 s.words 数组
+        // 不再需要手动分割 s.text
+        newQueue.push({ type: 'sentence', ...s });
+    });
+    practiceQueue.value = newQueue;
+}
+
+function resetStateForNewUnit() {
+    currentItemIndex.value = 0;
+    activeItemIndex.value = 0;
+    currentWordIndex.value = 0;
+    isAnswerShown.value = false;
+    isTransitioning.value = false;
+    userInputs.value = new Array(practiceQueue.value.length).fill(null);
+}
+
+async function markUnitAsComplete() {
+    if (!currentUnitId.value || !currentBookId.value) return;
+    try {
+        const creditsPerUnit = bookCredits.value;
+        const response = await fetch('/api/userBook/completeUnit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': token },
+            body: JSON.stringify({
+                bookId: currentBookId.value,
+                unitId: currentUnitId.value,
+                creditsEarned: creditsPerUnit
+            })
+        });
+        if (response.ok) {
+            userStore.user.credits += creditsPerUnit;
+        }
+    } catch (error) {
+        console.error('标记完成失败:', error);
+    } finally {
+        loadNextUnit();
+    }
+}
+
+function renderUI() {
+    const item = currentItem.value;
+    if (!item) return;
+
+    // 进度条和标题应反映真实学习进度
+    if (titleEl.value) titleEl.value.textContent = `${currentUnitName.value} (${currentItemIndex.value + 1}/${practiceQueue.value.length})`;
+    if (progressEl.value) progressEl.value.style.width = `${(currentItemIndex.value + 1) / practiceQueue.value.length * 100}%`;
+    if (chineseEl.value) chineseEl.value.textContent = item.chinese || '';
+    
+    updateVisibility();
+
+    if (!userInputs.value[activeItemIndex.value]) {
+         userInputs.value[activeItemIndex.value] = new Array(currentWords.value.length).fill('');
+    }
+    focusHiddenInput();
+}
+
+function moveToNextItem() {
+    if (!isAnswerShown.value || !isTransitioning.value) return;
+    isTransitioning.value = false;
+    // 只有当用户在当前学习进度上完成时，才推进两个索引
+    if (activeItemIndex.value === currentItemIndex.value) {
+        currentItemIndex.value++;
+        activeItemIndex.value++;
+    } else {
+        // 如果用户是在“回顾”旧题目并完成，则只更新当前查看的索引到下一个
+        activeItemIndex.value++;
+    }
+    currentWordIndex.value = 0;
+    isAnswerShown.value = false;
+    wordAnalyses.value = []; // 切换时清空词性分析
+    
+    if (currentItemIndex.value >= practiceQueue.value.length) {
+        markUnitAsComplete();
+    } else {
+        renderUI();
+        playCurrentAudio();
+    }
+}
+
+function checkCurrentItem() {
+    if (isTransitioning.value || isAnswerShown.value) return;
+
+    wrongWords.value.clear(); // Clear previous errors
+    const userAnswers = userInputs.value[activeItemIndex.value] || [];
+    const correctAnswers = currentWords.value;
+
+    let allCorrect = true;
+    const item = currentItem.value;
+    const expectedAnswer = (item.text || '').trim().toLowerCase();
+
+    if (item.type === 'word') {
+        // 单词模式：所有输入都必须与 item.text 匹配
+        for (let i = 0; i < currentWords.value.length; i++) {
+            const userAnswer = (userAnswers[i] || '').trim().toLowerCase();
+            if (userAnswer !== expectedAnswer) {
+                allCorrect = false;
+                wrongWords.value.add(i);
+            }
+        }
+    } else {
+        // 句子模式：逐个单词比对
+        for (let i = 0; i < correctAnswers.length; i++) {
+            const userAnswer = (userAnswers[i] || '').trim().toLowerCase();
+            const correctAnswer = (correctAnswers[i]?.text || '').trim().toLowerCase();
+            if (userAnswer !== correctAnswer) {
+                allCorrect = false;
+                wrongWords.value.add(i);
+            }
+        }
+    }
+
+    if (allCorrect) {
+        isTransitioning.value = true;
+        isAnswerShown.value = true;
+        // 无论句子还是单词，都进行分析
+        analyzeSentence(currentItem.value.text);
+        playCurrentAudio();
+        
+        // 使用 nextTick 确保在UI更新（显示答案）后，再准备切换到下一项
+        // 这里的 setTimeout 只是为了让用户看到答案，然后自动跳转
+        const delay = currentItem.value.type === 'word' ? 1500 : 5000;
+        setTimeout(() => {
+            if (isAnswerShown.value) { // 确保用户没有手动隐藏答案
+                moveToNextItem();
+            }
+        }, delay);
+
+    } else {
+        const firstWrongIndex = Math.min(...wrongWords.value);
+        if (firstWrongIndex !== Infinity) {
+            currentWordIndex.value = firstWrongIndex;
+        }
+        contentWrapper.value?.classList.add('shake');
+        setTimeout(() => contentWrapper.value?.classList.remove('shake'), 500);
+        focusHiddenInput();
+    }
+}
+
+function toggleAnswerDisplay() {
+    if (isTransitioning.value) return;
+    isAnswerShown.value = !isAnswerShown.value;
+    if (isAnswerShown.value && (currentItem.value.type === 'sentence' || currentItem.value.type === 'word')) {
+        // 确保只分析一次
+        if (wordAnalyses.value.length === 0) {
+            analyzeSentence(currentItem.value.text);
+        }
+    } else {
+        wordAnalyses.value = []; // 隐藏答案时也清空词性分析
+    }
+    renderUI();
+}
+
+function focusHiddenInput() {
+    if (!hiddenInput.value) return;
+    hiddenInput.value.focus();
+    if (isAnswerShown.value) {
+        hiddenInput.value.value = '';
+    } else {
+        hiddenInput.value.value = userInputs.value[activeItemIndex.value]?.[currentWordIndex.value] || '';
+        hiddenInput.value.select();
+    }
+}
+
+function updateVisibility() {
+    // 更新中文可见性
+    if (chineseEl.value) {
+        chineseEl.value.style.display = (isAnswerShown.value || toggleChinese.value?.checked) ? 'block' : 'none';
+    }
+    // 更新音标可见性 (通过响应式变量)
+    isPhoneticVisible.value = isAnswerShown.value || togglePhonetic.value?.checked;
+}
+
+function nextWord() {
+    if (isTransitioning.value || isAnswerShown.value) return;
+    
+    const item = currentItem.value;
+    if (item.type === 'word' && toggleThreeTimes.value?.checked) {
+        const currentInput = (userInputs.value[activeItemIndex.value]?.[currentWordIndex.value] || '').trim().toLowerCase();
+        const correctAnswer = (item.text || '').trim().toLowerCase();
+        if (currentInput !== correctAnswer) {
+            contentWrapper.value?.classList.add('shake');
+            setTimeout(() => contentWrapper.value?.classList.remove('shake'), 500);
+            focusHiddenInput();
+            return;
+        }
+    }
+    
+    if (currentWordIndex.value < currentWords.value.length - 1) {
+        currentWordIndex.value++;
+        // renderUI() 会在 nextTick 中被 focusHiddenInput 间接调用，这里不再需要
+        // 使用 nextTick 确保 DOM 更新后再聚焦
+        nextTick(() => {
+            focusHiddenInput();
+        });
+    } else {
+        // In sentence mode, the last word should also trigger a check, not just move.
+        if (currentItem.value.type === 'sentence') {
+            checkCurrentItem();
+        }
+    }
+}
+
+function prevWord() {
+    if (currentWordIndex.value > 0) {
+        currentWordIndex.value--;
+        renderUI();
+    }
+}
+
+function handleHiddenInput(e) {
+    if (isTransitioning.value || isAnswerShown.value) return;
+
+    // 【关键改动】当用户开始输入时，将学习进度同步到当前活动项
+    // 这意味着用户决定开始做这一题，即使他是跳过来的
+    if (activeItemIndex.value > currentItemIndex.value) {
+        currentItemIndex.value = activeItemIndex.value;
+    }
+
+    const inputs = userInputs.value[activeItemIndex.value] || [];
+    inputs[currentWordIndex.value] = e.target.value;
+    userInputs.value[activeItemIndex.value] = [...inputs]; // Ensure reactivity
+}
+
+function handleKeyDown(e) {
+    if (isTransitioning.value && isAnswerShown.value) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            moveToNextItem();
+        }
+        return;
+    }
+    if (isTransitioning.value) {
+         e.preventDefault();
+         return;
+    }
+    
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        toggleAnswerDisplay();
+    } else if (e.key === 'F' && e.shiftKey) {
+        e.preventDefault();
+        playCurrentAudio();
+    } else if (isAnswerShown.value) {
+        if (e.key === 'Enter') toggleAnswerDisplay();
+    } else {
+        switch (e.key) {
+            case ' ':
+                if (currentItem.value.type === 'sentence' || currentItem.value.type === 'word') {
+                    e.preventDefault();
+                    nextWord();
+                }
+                break;
+            case 'Enter': e.preventDefault(); checkCurrentItem(); break;
+            case 'Backspace':
+                if (hiddenInput.value.value === '' && currentWordIndex.value > 0) {
+                    e.preventDefault();
+                    prevWord();
+                }
+                break;
+        }
+    }
+}
+
+// --- Lifecycle Hook ---
+onMounted(() => {
+    // 注入 Header 颜色控制
+    updateHeaderColor();
+
+    // Assign refs to DOM elements
+    titleEl.value = document.getElementById('lesson-title');
+    progressEl.value = document.getElementById('lesson-progress');
+    chineseEl.value = document.getElementById('chinese-text');
+    hiddenInput.value = document.getElementById('hidden-input');
+    toggleChinese.value = document.getElementById('toggle-chinese');
+    togglePhonetic.value = document.getElementById('toggle-phonetic');
+    toggleThreeTimes.value = document.getElementById('toggle-threeTimes');
+    contentWrapper.value = document.querySelector('.content-wrapper');
+    audioPlayer.value = document.getElementById('audioPlayer');
+    
+    // Add event listeners
+    hiddenInput.value.addEventListener('input', handleHiddenInput);
+    hiddenInput.value.addEventListener('keydown', handleKeyDown);
+    document.getElementById('prev-sentence').addEventListener('click', () => {
+        if (activeItemIndex.value > 0) {
+            activeItemIndex.value--;
+            currentWordIndex.value = 0;
+            isAnswerShown.value = false; // 切换时总是隐藏答案
+            wordAnalyses.value = []; // 切换时清空词性分析
+            renderUI();
+            playCurrentAudio();
+            // 不再强制聚焦，让用户决定是否输入
+        }
+    });
+    document.getElementById('next-sentence').addEventListener('click', () => {
+         if (activeItemIndex.value < practiceQueue.value.length - 1) {
+            activeItemIndex.value++;
+            currentWordIndex.value = 0;
+            isAnswerShown.value = false; // 切换时总是隐藏答案
+            wordAnalyses.value = []; // 切换时清空词性分析
+            renderUI();
+            playCurrentAudio();
+            // 不再强制聚焦，让用户决定是否输入
+        }
+    });
+    toggleChinese.value.addEventListener('change', updateVisibility);
+    togglePhonetic.value.addEventListener('change', updateVisibility);
+    toggleThreeTimes.value.addEventListener('change', () => {
+        // 【修复】仅当答案未显示时，切换此选项才重置当前单词的状态
+        // 从而防止在显示答案时切换导致UI卡死
+        if (!isAnswerShown.value) {
+            if (userInputs.value[activeItemIndex.value]) {
+                userInputs.value[activeItemIndex.value] = null;
+            }
+            currentWordIndex.value = 0;
+            renderUI();
+        }
+    });
+    document.body.addEventListener('click', (e) => {
+        if (!e.target.closest('.word-placeholder, .nav-arrow, input, label')) {
+            focusHiddenInput();
+        }
+    });
+
+    loadNextUnit();
+});
+
+onUnmounted(() => {
+    const setHeaderBgColor = inject('setHeaderBgColor');
+    if (setHeaderBgColor) {
+        setHeaderBgColor('transparent'); // Reset on component leave
+    }
+
+    // 离开页面时，重置 Header 为透明
+    if (setHeaderBgColor) setHeaderBgColor('transparent');
+});
+
+// --- 音节拆分逻辑 ---
+const splitWord = async (text) => {
+  if (!text) {
+    syllables.value = [];
+    return;
+  }
+  loadingSyllables.value = true;
+  try {
+    // 加载插件（extend 是幂等的，重复执行无副作用）
+    nlp.extend(speechPlugin);
+    const cleanedText = text.replace(/[^a-zA-Z]/g, '').toLowerCase();
+    // 执行拆分
+    let doc = nlp(cleanedText);
+    let result = doc.syllables();
+    if (result && result.length > 0 && result[0] && Array.isArray(result[0])) {
+      syllables.value = result[0];
+    } else {
+      syllables.value = [cleanedText]; // 如果库无法拆分，则显示原单词
+    }
+  } catch (e) {
+    console.error("音节库加载或执行失败:", e);
+    syllables.value = [cleanedText]; // 降级处理
+  } finally {
+    loadingSyllables.value = false;
+  }
+};
+
+// --- Watchers ---
+watch(currentItem, (newItem) => {
+  // 仅在当前项是单词且答案显示时，才执行音节拆分
+  if (newItem && newItem.type === 'word' && isAnswerShown.value) {
+    splitWord(newItem.text);
+  }
+}, { immediate: true });
+
+// 监听答案显示状态，确保显示答案时才加载音节
+watch(isAnswerShown, (isShown) => {
+    if (isShown && currentItem.value && currentItem.value.type === 'word') {
+        // 如果之前没有拆分过，或者单词变了，就重新拆分
+        if (syllables.value.join('') !== currentItem.value.text) {
+            splitWord(currentItem.value.text);
+        }
+    }
+})
+
+// 5. 监听变化
+watch(() => userStore.theme, () => {
+        updateHeaderColor();
+    });
+watch(isZenMode, updateHeaderColor); // 模式变了，Header 也要变
+
+
+</script>
+
+<style scoped>
+@import '../assets/style.css';
+@import '../assets/practice.css';
+
+.practice-container {
+    /* --- 核心变量定义 --- */
+    --bg-color: #fff8f5;   /* 白天背景：米色 */
+    --text-color: #333;
+    --border-color: #e6e0db;
+    --primary-color: #f48c25;
+    --primary-light: rgba(244, 140, 37, 0.1);
+    
+    /* 输入状态颜色 */
+    --input-line-color: #d1d5db;
+    --input-line-active: #f48c25;
+    --correct-color: #10b981;    /* 绿色 */
+    --error-color: #ef4444;      /* 红色 */
+    --nav-arrow-color: #ddd;
+
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100%;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    transition: background-color 0.3s ease, color 0.3s ease;
+    overflow: hidden;
+}
+
+/* Header 透明化 */
+.practice-header {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 40px;
+    height: 60px;
+    background-color: transparent; /* 透出背景 */
+    z-index: 50;
+    box-sizing: border-box; 
+}
+
+/* Main 区域 */
+.practice-main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 20px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* =========================================
+   2. 输入区域样式 (Word Input)
+   ========================================= */
+.word-input-container { 
+    display: flex; 
+    flex-wrap: wrap; 
+    justify-content: center; 
+    align-items: flex-end; 
+    gap: 20px; 
+    min-height: 120px; 
+    padding: 0 20px;
+}
+
+.word-group { 
+    display: inline-flex; 
+    flex-direction: column; 
+    align-items: center; 
+    position: relative;
+}
+
+/* 输入框占位符：下划线风格 */
+.word-placeholder {
+    font-family: "Menlo", "Monaco", "Courier New", monospace;
+    font-size: 2rem; 
+    letter-spacing: 2px; 
+    font-weight: 600;
+    
+    background-color: transparent !important;
+    border-bottom: 3px solid var(--input-line-color); 
+    
+    padding: 5px 10px;
+    min-width: 60px;
+    text-align: center; 
+    color: var(--text-color); 
+    
+    transition: all 0.3s;
+    border-radius: 2px 2px 0 0;
+    cursor: text;
+}
+
+.word-placeholder.active { 
+    border-bottom-color: var(--input-line-active); 
+    transform: translateY(-2px);
+}
+
+.word-placeholder.wrong { 
+    color: var(--error-color); 
+    border-bottom-color: var(--error-color); 
+}
+
+/* =========================================
+   3. 答案显示区域 (Correct Answer) - ✅ 找回的部分
+   ========================================= */
+.correct-answer-display {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 25px; /* 单词之间的间距 */
+    margin-top: 20px;
+    width: 100%;
+}
+
+/* 单个单词卡片容器 */
+.word-with-pos {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    min-width: 60px;
+}
+
+/* 单词文本 */
+.word-with-pos .word {
+    font-family: "Menlo", "Monaco", "Courier New", monospace;
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--correct-color); /* 绿色 */
+    letter-spacing: 2px;
+    padding: 5px 10px;
+}
+
+/* 音标 */
+.word-with-pos .phonetic {
+    font-size: 0.9em;
+    color: #6c757d;
+    margin-top: 4px;
+    font-family: sans-serif;
+}
+
+/* 词性标记 */
+.word-with-pos .pos {
+    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: 12px;
+    color: #fff;
+    margin-top: 6px;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* 词性颜色分类 */
+.pos-noun { background-color: #60aaf9; }
+.pos-verb { background-color: #ef4444; }
+.pos-adjective { background-color: #fbbf24; color: #333; }
+.pos-adverb { background-color: #f97316; }
+.pos-preposition { background-color: #10b981; }
+.pos-pronoun { background-color: #8b5cf6; }
+.pos-other { background-color: #6b7280; }
+
+/* =========================================
+   4. 音节显示样式 (Syllables) - ✅ 找回的部分
+   ========================================= */
+.syllables-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.syllable-box {
+    display: inline-block;
+    padding: 6px 14px;
+    background-color: rgba(16, 185, 129, 0.12); 
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: 8px;
+    
+    font-family: "Menlo", "Monaco", "Courier New", monospace;
+    font-weight: 700;
+    font-size: 1.8rem;
+    color: var(--correct-color);
+    line-height: 1.2;
+}
+
+.loading {
+    font-size: 0.9rem;
+    color: #999;
+    font-style: italic;
+}
+
+/* =========================================
+   5. 暗夜模式适配 (Dark Mode)
+   ========================================= */
+.practice-container.dark-mode {
+    --bg-color: #1a202c;     
+    --text-color: #e2e8f0;
+    --border-color: #2d3748;
+    --input-line-color: #4b5563;
+}
+
+.practice-container.dark-mode .word-with-pos .phonetic {
+    color: #a0aec0;
+}
+
+.practice-container.dark-mode .syllable-box {
+    background-color: rgba(16, 185, 129, 0.2);
+    border-color: rgba(104, 211, 145, 0.3);
+    color: #68d391;
+}
+
+/* =========================================
+   6. 其他辅助样式 (Header, Footer, Zen)
+   ========================================= */
+.header-left { display: flex; align-items: center; gap: 15px; font-size: 1.1em; font-weight: 600; }
+.header-right { display: flex; align-items: center; gap: 20px; }
+.display-toggles { display: flex; gap: 15px; font-size: 0.9em; color: #666; }
+.practice-container.dark-mode .display-toggles { color: #a0aec0; }
+.display-toggles label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+
+/* 进度条 */
+.progress-bar-top-container { position: absolute; bottom: 0; left: 0; width: 100%; height: 3px; background: transparent; }
+.progress-bar-fill { height: 100%; background-color: var(--primary-color); width: 0%; transition: width 0.3s ease; }
+
+/* 导航箭头 */
+.nav-arrow { font-size: 3.5rem; color: var(--nav-arrow-color); cursor: pointer; padding: 0 30px; user-select: none; transition: all 0.2s; opacity: 0.6; }
+.practice-container.dark-mode .nav-arrow { color: #4a5568; }
+.nav-arrow:hover { color: var(--primary-color); opacity: 1; transform: scale(1.1); }
+
+/* 句子标题 */
+.sentence-display h1 { font-size: 2.2rem; margin: 0; font-weight: 500; text-align: center; color: var(--text-color); line-height: 1.4; opacity: 0.9; }
+.phonetic-word { font-size: 0.9em; color: #666; margin-bottom: 4px; }
+.practice-container.dark-mode .phonetic-word { color: #a0aec0; }
+
+/* Footer */
+.practice-footer {
+    flex: 0 0 auto;
+    padding: 20px 0;
+    text-align: center;
+    background-color: transparent;
+}
+.hotkey-group { display: inline-block; margin: 0 10px; color: #9ca3af; font-size: 0.85rem; }
+.hotkey-group kbd {
+    background: transparent;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-family: monospace;
+    color: #666;
+}
+.practice-container.dark-mode .hotkey-group { color: #6b7280; }
+.practice-container.dark-mode .hotkey-group kbd { border-color: #4b5563; color: #e2e8f0; background: #2d3748; }
+
+/* =========================================
+   专注模式按钮修复 (Zen Button Fix)
+   ========================================= */
+.zen-btn {
+    /* 布局与防挤压 */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;       /* 关键：禁止被 Flex 容器挤压 */
+    white-space: nowrap;  /* 关键：禁止文字换行 */
+    
+    /* 尺寸与间距 */
+    height: 36px;         /* 固定高度，防止忽大忽小 */
+    padding: 0 16px;      /* 左右内边距 */
+    gap: 8px;             /* 图标和文字的间距 */
+    margin-left: 15px;
+    
+    /* 外观 */
+    background-color: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 18px;  /* 圆角胶囊形 */
+    
+    /* 文字 */
+    font-size: 14px;
+    color: var(--text-color);
+    
+    /* 交互 */
+    cursor: pointer;
+    transition: all 0.2s ease;
+    opacity: 0.8;
+}
+
+/* 鼠标悬停 */
+.zen-btn:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background-color: var(--primary-light);
+    opacity: 1;
+    transform: translateY(-1px); /* 轻微上浮 */
+}
+
+/* 修复内部图标变形 */
+.zen-btn svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0; /* 图标禁止缩放 */
+    display: block;
+}
+
+/* 修复内部文字垂直对齐 */
+.zen-btn .btn-text {
+    line-height: 1;
+    display: inline-block;
+}
+
+.practice-container.zen-mode {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    z-index: 9999; background-color: var(--bg-color); padding: 0;
+}
+.practice-container.zen-mode .practice-header { background-color: transparent; border-bottom: none; }
+
+/* 隐藏元素 */
+#hidden-input { position: absolute; opacity: 0; top: -1000px; }
+
+/* 错误抖动 */
+.shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+@keyframes shake {
+    10%, 90% { transform: translate3d(-1px, 0, 0); } 
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 
+    40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+</style>

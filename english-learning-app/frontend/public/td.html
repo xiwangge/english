@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>御词长城 - Word Tower Defense</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #333;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+            user-select: none;
+        }
+
+        #game-wrapper {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas {
+            background: #4caf50; /* 草地背景 */
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        /* 顶部 UI 面板 */
+        #top-ui {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            background: rgba(0,0,0,0.6);
+            padding: 10px 30px;
+            border-radius: 20px;
+            font-size: 20px;
+            font-weight: bold;
+            pointer-events: none;
+        }
+
+        .stat-item { display: flex; align-items: center; gap: 5px; }
+        .icon { font-size: 24px; }
+        #ink-val { color: #00e5ff; }
+        #hp-val { color: #ff5252; }
+
+        /* 底部 塔防商店 */
+        #tower-shop {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            background: rgba(0,0,0,0.8);
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .shop-item {
+            width: 80px;
+            height: 100px;
+            background: #444;
+            border: 2px solid #666;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .shop-item:hover { background: #555; border-color: white; }
+        .shop-item.selected { border-color: #00e5ff; box-shadow: 0 0 10px #00e5ff; }
+        .shop-item.disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
+
+        .tower-icon { width: 40px; height: 40px; border-radius: 50%; margin-bottom: 5px; background: #888; object-fit: cover;}
+        .tower-cost { font-size: 14px; color: #00e5ff; font-weight: bold; }
+        .tower-name { font-size: 12px; color: #ccc; }
+        .hotkey { position: absolute; top: 2px; left: 5px; font-size: 10px; color: #aaa; }
+
+        /* 当前输入提示 */
+        #current-input-display {
+            position: absolute;
+            bottom: 140px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 48px;
+            font-weight: bold;
+            text-shadow: 2px 2px 0 #000;
+            color: yellow;
+            pointer-events: none;
+        }
+
+        /* 游戏结束 */
+        #game-over {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 99;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-wrapper">
+        <canvas id="gameCanvas"></canvas>
+
+        <div id="top-ui">
+            <div class="stat-item"><span class="icon">❤️</span> <span id="hp-val">10</span></div>
+            <div class="stat-item"><span class="icon">💧</span> <span id="ink-val">100</span> (墨水)</div>
+            <div class="stat-item"><span class="icon">🌊</span> 波次: <span id="wave-val">1</span></div>
+        </div>
+
+        <div id="current-input-display"></div>
+
+        <div id="tower-shop">
+            </div>
+
+        <div id="game-over">
+            <h1 id="end-title">城门失守</h1>
+            <button onclick="location.reload()" style="padding: 15px 30px; font-size: 20px; cursor: pointer;">重新开始</button>
+        </div>
+    </div>
+
+<script>
+    // --- 配置区域 ---
+    
+    // 1. 在这里配置你的头像塔
+    const towerTypes = [
+        {
+            id: 'guard',
+            name: '锦衣卫',
+            cost: 50,
+            range: 150,
+            damage: 20,
+            cooldown: 30, // 射速 (帧数，越小越快)
+            color: '#FFD700',
+            img: '', // 填入 '22.png' (锦衣卫头像)
+            desc: '射速快，单体攻击'
+        },
+        {
+            id: 'lady',
+            name: '大唐仕女',
+            cost: 100,
+            range: 120,
+            damage: 5,
+            cooldown: 5, 
+            slowFactor: 0.5, // 减速效果
+            color: '#FF69B4',
+            img: '', // 填入 '22.png' (仕女头像)
+            desc: '音律攻击，使敌人减速'
+        },
+        {
+            id: 'general',
+            name: '五虎上将',
+            cost: 200,
+            range: 200,
+            damage: 100,
+            cooldown: 60,
+            color: '#ff3333',
+            img: '', // 填入 '23.png' (五虎将头像)
+            desc: '伤害极高，攻速慢'
+        }
+    ];
+
+    // 2. 单词库
+    const words = [
+        "cat", "dog", "run", "sky", "red", "box", "hat", "sun", 
+        "apple", "water", "happy", "green", "tiger", "bread", 
+        "monkey", "dragon", "banana", "orange", "friend", "school",
+        "computer", "science", "history", "beautiul", "elephant"
+    ];
+
+    // --- 游戏引擎 ---
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    let width, height;
+    
+    // 游戏状态
+    let hp = 10;
+    let ink = 150; // 初始墨水
+    let wave = 1;
+    let gameOver = false;
+    let frame = 0;
+
+    // 实体
+    let enemies = [];
+    let towers = [];
+    let projectiles = [];
+    let particles = [];
+    
+    // 输入状态
+    let currentInput = "";
+    let lockedTarget = null; // 当前锁定的打字目标敌人
+
+    // 建造状态
+    let selectedTowerType = null;
+    let isPlacing = false;
+    let mouseX = 0;
+    let mouseY = 0;
+
+    // 路径点 (简单的 U 型路径)
+    let path = [];
+
+    // 音频上下文
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function init() {
+        resize();
+        window.addEventListener('resize', resize);
+        window.addEventListener('keydown', handleKeyInput);
+        canvas.addEventListener('mousemove', e => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+        });
+        canvas.addEventListener('click', handleCanvasClick);
+        
+        initShop();
+        loop();
+    }
+
+    function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+        // 定义路径: 左上 -> 左下 -> 右下 -> 终点(右中)
+        // 简单路径：从左往右，中间弯一下
+        path = [
+            {x: 0, y: height/3},
+            {x: width * 0.3, y: height/3},
+            {x: width * 0.3, y: height * 0.7},
+            {x: width * 0.7, y: height * 0.7},
+            {x: width * 0.7, y: height/2},
+            {x: width, y: height/2}
+        ];
+    }
+
+    // --- 类定义 ---
+
+    class Enemy {
+        constructor() {
+            this.pathIndex = 0;
+            this.x = path[0].x;
+            this.y = path[0].y;
+            this.speed = 1 + (wave * 0.1); // 波次越后越快
+            this.radius = 20;
+            
+            // 随机分配单词
+            this.word = words[Math.floor(Math.random() * words.length)];
+            // 如果波次高，强制加长单词
+            if (wave > 3 && this.word.length < 5) this.word = words[Math.floor(Math.random() * words.length)];
+            
+            this.maxHp = this.word.length * 20 + (wave * 10);
+            this.hp = this.maxHp;
+            
+            this.slowTimer = 0; // 减速状态
+        }
+
+        update() {
+            // 移动逻辑
+            let target = path[this.pathIndex + 1];
+            if (!target) {
+                // 到达终点
+                this.reachedEnd = true;
+                return;
+            }
+
+            let dx = target.x - this.x;
+            let dy = target.y - this.y;
+            let dist = Math.hypot(dx, dy);
+
+            let currentSpeed = this.speed;
+            if (this.slowTimer > 0) {
+                currentSpeed *= 0.5;
+                this.slowTimer--;
+            }
+
+            if (dist < currentSpeed) {
+                this.pathIndex++;
+                this.x = target.x;
+                this.y = target.y;
+            } else {
+                this.x += (dx / dist) * currentSpeed;
+                this.y += (dy / dist) * currentSpeed;
+            }
+        }
+
+        draw() {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.fillStyle = this.slowTimer > 0 ? '#00bcd4' : '#e53935'; // 被减速变蓝
+            ctx.fill();
+
+            // 绘制血条
+            const hpPct = this.hp / this.maxHp;
+            ctx.fillStyle = 'red';
+            ctx.fillRect(this.x - 20, this.y - 30, 40, 5);
+            ctx.fillStyle = '#00e676';
+            ctx.fillRect(this.x - 20, this.y - 30, 40 * hpPct, 5);
+
+            // 绘制单词
+            ctx.font = "bold 20px Consolas";
+            ctx.textBaseline = "middle";
+            ctx.textAlign = "center";
+            
+            // 单词背景
+            const textW = ctx.measureText(this.word).width;
+            ctx.fillStyle = "rgba(0,0,0,0.5)";
+            ctx.fillRect(this.x - textW/2 - 5, this.y - 55, textW + 10, 24);
+
+            // 单词内容 (匹配部分变黄)
+            if (this === lockedTarget) {
+                const typed = currentInput;
+                const remain = this.word.substring(typed.length);
+                
+                // 为了简单绘制，分两段画
+                ctx.textAlign = "right";
+                ctx.fillStyle = "#ffeb3b"; // 已输入
+                ctx.fillText(typed, this.x - (ctx.measureText(remain).width / 2), this.y - 42);
+                
+                ctx.textAlign = "left";
+                ctx.fillStyle = "#fff"; // 未输入
+                ctx.fillText(remain, this.x - (ctx.measureText(remain).width / 2), this.y - 42);
+            } else {
+                ctx.fillStyle = "#fff";
+                ctx.fillText(this.word, this.x, this.y - 42);
+            }
+        }
+    }
+
+    class Tower {
+        constructor(type, x, y) {
+            this.type = type;
+            this.x = x;
+            this.y = y;
+            this.cooldownTimer = 0;
+        }
+
+        update() {
+            if (this.cooldownTimer > 0) this.cooldownTimer--;
+
+            // 索敌
+            if (this.cooldownTimer <= 0) {
+                const target = this.findTarget();
+                if (target) {
+                    this.fire(target);
+                    this.cooldownTimer = this.type.cooldown;
+                }
+            }
+        }
+
+        findTarget() {
+            // 找范围内最近的敌人
+            let nearest = null;
+            let minDist = Infinity;
+            for (let e of enemies) {
+                let dist = Math.hypot(e.x - this.x, e.y - this.y);
+                if (dist <= this.type.range && dist < minDist) {
+                    minDist = dist;
+                    nearest = e;
+                }
+            }
+            return nearest;
+        }
+
+        fire(target) {
+            projectiles.push(new Projectile(this.x, this.y, target, this.type));
+            playTone(this.type.id === 'lady' ? 600 : 200, 'square');
+        }
+
+        draw() {
+            // 攻击范围圈 (仅鼠标悬停时显示，为了性能这里简化一直显示个淡圈)
+            // ctx.beginPath();
+            // ctx.arc(this.x, this.y, this.type.range, 0, Math.PI * 2);
+            // ctx.strokeStyle = "rgba(255,255,255,0.1)";
+            // ctx.stroke();
+
+            // 塔身
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, 25, 0, Math.PI * 2);
+            ctx.fillStyle = '#333'; // 底座
+            ctx.fill();
+            
+            // 如果有图片画图片，没有画圆
+            // 这里逻辑是：如果 img 属性不为空，尝试画图
+            // 简化版直接画个带颜色的圆代表头像
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, 20, 0, Math.PI * 2);
+            ctx.fillStyle = this.type.color;
+            ctx.fill();
+
+            // 名字
+            ctx.fillStyle = 'white';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(this.type.name, this.x, this.y + 40);
+        }
+    }
+
+    class Projectile {
+        constructor(x, y, target, type) {
+            this.x = x;
+            this.y = y;
+            this.target = target;
+            this.type = type; // 继承塔的属性(伤害、减速)
+            this.speed = 10;
+            this.active = true;
+        }
+
+        update() {
+            if (!enemies.includes(this.target)) {
+                this.active = false;
+                return;
+            }
+
+            let dx = this.target.x - this.x;
+            let dy = this.target.y - this.y;
+            let dist = Math.hypot(dx, dy);
+
+            if (dist < this.speed) {
+                // Hit
+                this.target.hp -= this.type.damage;
+                if (this.type.slowFactor) {
+                    this.target.slowTimer = 60; // 减速1秒
+                }
+                this.active = false;
+                
+                // 击杀检测
+                if (this.target.hp <= 0 && enemies.includes(this.target)) {
+                    killEnemy(this.target, false); // 塔杀的
+                }
+            } else {
+                this.x += (dx / dist) * this.speed;
+                this.y += (dy / dist) * this.speed;
+            }
+        }
+
+        draw() {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, 5, 0, Math.PI*2);
+            ctx.fillStyle = this.type.color;
+            ctx.fill();
+        }
+    }
+
+    // --- 逻辑控制 ---
+
+    function initShop() {
+        const shop = document.getElementById('tower-shop');
+        towerTypes.forEach((t, index) => {
+            const item = document.createElement('div');
+            item.className = 'shop-item';
+            item.innerHTML = `
+                <div class="hotkey">${index + 1}</div>
+                <div class="tower-icon" style="background:${t.color}"></div>
+                <div class="tower-cost">💧${t.cost}</div>
+                <div class="tower-name">${t.name}</div>
+            `;
+            item.onclick = () => selectTower(t, item);
+            shop.appendChild(item);
+        });
+
+        // 键盘数字键选塔
+        window.addEventListener('keydown', e => {
+            const idx = parseInt(e.key) - 1;
+            if (idx >= 0 && idx < towerTypes.length) {
+                const items = document.querySelectorAll('.shop-item');
+                selectTower(towerTypes[idx], items[idx]);
+            }
+            if (e.key === 'Escape') cancelBuild();
+        });
+    }
+
+    function selectTower(type, domElement) {
+        if (ink < type.cost) return; // 钱不够
+
+        if (selectedTowerType === type) {
+            cancelBuild(); // 再次点击取消
+            return;
+        }
+
+        selectedTowerType = type;
+        isPlacing = true;
+
+        // UI 选中态
+        document.querySelectorAll('.shop-item').forEach(el => el.classList.remove('selected'));
+        if (domElement) domElement.classList.add('selected');
+    }
+
+    function cancelBuild() {
+        selectedTowerType = null;
+        isPlacing = false;
+        document.querySelectorAll('.shop-item').forEach(el => el.classList.remove('selected'));
+    }
+
+    function handleCanvasClick() {
+        if (gameOver) return;
+        
+        if (isPlacing && selectedTowerType) {
+            // 检查是否点在路径上 (简单判断)
+            // 实际塔防需要严谨的碰撞检测，这里简化：离路径线太近不能放
+            // 简化：只要不重叠其他塔，且钱够
+            if (ink >= selectedTowerType.cost) {
+                towers.push(new Tower(selectedTowerType, mouseX, mouseY));
+                ink -= selectedTowerType.cost;
+                updateUI();
+                playTone(400, 'sine');
+                
+                // 建造后是否取消？通常塔防允许连续造，按右键取消。这里造一个取消一个方便新手
+                cancelBuild(); 
+            }
+        }
+    }
+
+    function handleKeyInput(e) {
+        if (gameOver) return;
+
+        // 如果没有锁定目标，寻找以该字母开头的最近敌人
+        if (!lockedTarget) {
+            // 优先找跑得最远的（最危险的）
+            // 我们的 pathIndex 越大越危险
+            // 这里简单遍历
+            const potentialTargets = enemies.filter(en => en.word.startsWith(e.key.toLowerCase()));
+            if (potentialTargets.length > 0) {
+                // 找 pathIndex 最大或者 距离终点最近的
+                lockedTarget = potentialTargets[0]; // 简化：锁定第一个匹配的
+                currentInput = e.key.toLowerCase();
+            }
+        } else {
+            // 已有锁定目标，检查下一个字母
+            const nextChar = lockedTarget.word[currentInput.length];
+            if (e.key.toLowerCase() === nextChar) {
+                currentInput += e.key.toLowerCase();
+            }
+        }
+
+        // 检查是否拼完
+        if (lockedTarget && currentInput === lockedTarget.word) {
+            killEnemy(lockedTarget, true); // 玩家杀的
+        }
+        
+        updateInputDisplay();
+    }
+
+    function killEnemy(enemy, isPlayerKill) {
+        // 从数组移除
+        const idx = enemies.indexOf(enemy);
+        if (idx > -1) enemies.splice(idx, 1);
+
+        // 奖励
+        const reward = isPlayerKill ? 20 : 5; // 自己打字杀钱多，塔杀钱少
+        ink += reward;
+        
+        // 特效
+        playTone(isPlayerKill ? 800 : 100, 'sawtooth');
+        
+        // 重置打字状态
+        if (enemy === lockedTarget) {
+            lockedTarget = null;
+            currentInput = "";
+            updateInputDisplay();
+        }
+        updateUI();
+    }
+
+    function updateInputDisplay() {
+        const div = document.getElementById('current-input-display');
+        div.innerText = currentInput;
+    }
+
+    function updateUI() {
+        document.getElementById('hp-val').innerText = hp;
+        document.getElementById('ink-val').innerText = ink;
+        document.getElementById('wave-val').innerText = wave;
+
+        // 刷新商店按钮状态（钱不够变灰）
+        const items = document.querySelectorAll('.shop-item');
+        towerTypes.forEach((t, i) => {
+            if (ink < t.cost) items[i].classList.add('disabled');
+            else items[i].classList.remove('disabled');
+        });
+    }
+
+    // 简易音频
+    function playTone(freq, type) {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.1);
+    }
+
+    // --- 主循环 ---
+
+    function loop() {
+        if (gameOver) return;
+
+        ctx.clearRect(0, 0, width, height);
+
+        // 绘制路径 (草地上的土路)
+        ctx.beginPath();
+        ctx.moveTo(path[0].x, path[0].y);
+        for(let i=1; i<path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+        ctx.lineWidth = 40;
+        ctx.strokeStyle = "#795548"; // 土色
+        ctx.stroke();
+        ctx.lineWidth = 1;
+
+        // 绘制终点（城门）
+        const endP = path[path.length-1];
+        ctx.fillStyle = "#555";
+        ctx.fillRect(endP.x - 20, endP.y - 40, 40, 80);
+        ctx.fillStyle = "white";
+        ctx.font = "16px Arial";
+        ctx.fillText("城门", endP.x - 15, endP.y);
+
+        // 生成敌人
+        frame++;
+        if (frame % (120 - Math.min(60, wave * 5)) === 0) { // 波次越高生成越快
+            enemies.push(new Enemy());
+        }
+        // 增加波次难度
+        if (frame % 1800 === 0) wave++; // 每30秒增加一波
+
+        // 绘制/更新 塔
+        for (let t of towers) {
+            t.update();
+            t.draw();
+        }
+
+        // 绘制/更新 敌人
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            let e = enemies[i];
+            e.update();
+            e.draw();
+
+            if (e.reachedEnd) {
+                hp--;
+                enemies.splice(i, 1);
+                updateUI();
+                playTone(100, 'sawtooth');
+                // 屏幕闪红
+                canvas.style.background = '#e57373';
+                setTimeout(() => canvas.style.background = '#4caf50', 100);
+
+                if (lockedTarget === e) {
+                    lockedTarget = null;
+                    currentInput = "";
+                    updateInputDisplay();
+                }
+
+                if (hp <= 0) {
+                    gameOver = true;
+                    document.getElementById('game-over').style.display = 'flex';
+                }
+            }
+        }
+
+        // 绘制/更新 子弹
+        for (let i = projectiles.length - 1; i >= 0; i--) {
+            let p = projectiles[i];
+            p.update();
+            p.draw();
+            if (!p.active) projectiles.splice(i, 1);
+        }
+
+        // 建造预览
+        if (isPlacing && selectedTowerType) {
+            ctx.beginPath();
+            ctx.arc(mouseX, mouseY, selectedTowerType.range, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(mouseX, mouseY, 20, 0, Math.PI * 2);
+            ctx.fillStyle = selectedTowerType.color;
+            ctx.fill();
+        }
+
+        requestAnimationFrame(loop);
+    }
+
+    init();
+
+</script>
+</body>
+</html>

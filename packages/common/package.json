@@ -1,0 +1,10 @@
+{
+  "name": "@english-learning/common",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "license": "ISC",
+  "peerDependencies": {
+    "mongoose": "^6.0.12 || ^7.0.0 || ^8.0.0"
+  }
+}

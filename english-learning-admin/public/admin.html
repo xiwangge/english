@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>管理后台</title>
+    <style>
+        body { font-family: sans-serif; margin: 2rem; background-color: #f9fafb; color: #111827; }
+        .container { max-width: 1200px; margin: auto; }
+        h1, h2 { color: #1f2937; }
+        .card { background: white; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
+        .message-item { border-bottom: 1px solid #e5e7eb; padding: 1rem 0; }
+        .message-item:last-child { border-bottom: none; }
+        .author { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; }
+        .nickname { font-weight: bold; }
+        .content { margin: 0.5rem 0; }
+        .time { font-size: 0.875rem; color: #6b7280; }
+        .actions { margin-top: 1rem; display: flex; gap: 1rem; align-items: center; }
+        select, input, textarea, button { font-size: 1rem; padding: 0.5rem 0.75rem; border-radius: 0.375rem; border: 1px solid #d1d5db; }
+        button { background-color: #3b82f6; color: white; cursor: pointer; border-color: #3b82f6; }
+        button:hover { background-color: #2563eb; }
+        textarea { width: 100%; box-sizing: border-box; }
+        .user-management-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>管理后台</h1>
+
+        <div class="card">
+            <h2>数据看板</h2>
+            <a href="/dashboard.html" target="_blank">查看监控看板</a>
+            <hr>
+            <h2>课程管理</h2>
+            <a href="/update_book.html" target="_blank">课程维护</a>
+            <hr>
+            <h2>价格管理</h2>
+            <a href="/products.html" target="_blank">设置会员价格</a>
+            <hr>
+            <h2>用户管理</h2>
+            <div class="actions">
+                <input type="text" id="search-nickname" placeholder="按昵称搜索用户">
+                <button onclick="searchUser()">搜索</button>
+            </div>
+            <div id="user-list"></div>
+        </div>
+
+        <div class="card">
+            <h2>提案审核</h2>
+            <div id="proposals-list"></div>
+        </div>
+
+        <div class="card">
+            <h2>留言管理</h2>
+            <div id="messages-list"></div>
+        </div>
+    </div>
+
+    <script>
+        async function searchUser() {
+            const nickname = document.getElementById('search-nickname').value;
+            if (!nickname.trim()) {
+                alert('请输入要搜索的昵称');
+                return;
+            }
+            try {
+                const response = await fetch(`/api/users/search?nickname=${nickname}`, {
+                    headers: { 'Authorization': 'admin' }
+                });
+                const users = await response.json();
+                const userList = document.getElementById('user-list');
+                userList.innerHTML = '';
+                if (users.length === 0) {
+                    userList.innerHTML = '<p>未找到用户</p>';
+                    return;
+                }
+                users.forEach(user => {
+                    const item = document.createElement('div');
+                    item.className = 'user-management-item';
+                    item.innerHTML = `
+                        <span>${user.nickname} (${user.userType})</span>
+                        <div>
+                            <select id="userType-${user._id}">
+                                <option value="user" ${user.userType === 'user' ? 'selected' : ''}>普通用户</option>
+                                <option value="admin" ${user.userType === 'admin' ? 'selected' : ''}>管理员</option>
+                                <option value="support" ${user.userType === 'support' ? 'selected' : ''}>客服</option>
+                            </select>
+                            <button onclick="updateUserType('${user._id}')">更新</button>
+                        </div>
+                    `;
+                    userList.appendChild(item);
+                });
+            } catch (error) {
+                console.error('搜索用户失败:', error);
+                alert('搜索用户失败');
+            }
+        }
+
+        async function updateUserType(id) {
+            const userType = document.getElementById(`userType-${id}`).value;
+            try {
+                const response = await fetch(`/api/users/${id}/userType`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'admin'
+                    },
+                    body: JSON.stringify({ userType })
+                });
+                if (response.ok) {
+                    alert('用户类型更新成功');
+                    searchUser(); // Refresh the list
+                } else {
+                    alert('更新失败');
+                }
+            } catch (error) {
+                console.error('更新用户类型失败:', error);
+                alert('更新用户类型失败');
+            }
+        }
+
+        async function fetchMessages() {
+            try {
+                const response = await fetch('/api/messagesNeedRead');
+                const messages = await response.json();
+                
+                const proposalsList = document.getElementById('proposals-list');
+                const messagesList = document.getElementById('messages-list');
+                proposalsList.innerHTML = '';
+                messagesList.innerHTML = '';
+
+                messages.forEach(msg => {
+                    const item = document.createElement('div');
+                    item.className = 'message-item';
+                    item.innerHTML = `
+                        <div class="author">
+                            <img src="${msg.author.avatar}" alt="avatar" class="avatar">
+                            <span class="nickname">${msg.author.nickname}</span>
+                        </div>
+                        <p class="content">${msg.content}</p>
+                        <p class="time">${new Date(msg.createdAt).toLocaleString()}</p>
+                    `;
+
+                    if (msg.messageType === 'proposal') {
+                        const actions = document.createElement('div');
+                        actions.className = 'actions';
+                        actions.innerHTML = `
+                            <select id="status-${msg._id}">
+                                <option value="pending" ${msg.status === 'pending' ? 'selected' : ''}>待审核</option>
+                                <option value="approved" ${msg.status === 'approved' ? 'selected' : ''}>通过</option>
+                                <option value="rejected" ${msg.status === 'rejected' ? 'selected' : ''}>拒绝</option>
+                                <option value="closed" ${msg.status === 'closed' ? 'closed' : ''}>关闭</option>
+                            </select>
+                            <input type="datetime-local" id="deadline-${msg._id}" value="${msg.voteDeadline ? new Date(msg.voteDeadline).toISOString().substring(0, 16) : ''}">
+                            <button onclick="updateProposal('${msg._id}')">更新</button>
+                        `;
+                        item.appendChild(actions);
+                        proposalsList.appendChild(item);
+                    } else {
+                        const replyForm = document.createElement('div');
+                        replyForm.className = 'actions';
+                        replyForm.innerHTML = `
+                            <textarea id="reply-${msg._id}" placeholder="回复..."></textarea>
+                            <button onclick="postReply('${msg._id}')">回复</button>
+                            <button onclick="updateMessageStatus('${msg._id}', 'closed')">关闭</button>
+                        `;
+                        item.appendChild(replyForm);
+                        messagesList.appendChild(item);
+                    }
+                });
+            } catch (error) {
+                console.error('获取留言失败:', error);
+            }
+        }
+
+        async function updateProposal(id) {
+            const status = document.getElementById(`status-${id}`).value;
+            const voteDeadline = document.getElementById(`deadline-${id}`).value;
+            
+            try {
+                const response = await fetch(`/api/messages/${id}/status`, {
+                    method: 'PATCH',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'admin'
+                    },
+                    body: JSON.stringify({ status, voteDeadline })
+                });
+                if (response.ok) {
+                    alert('提案状态更新成功');
+                    fetchMessages();
+                } else {
+                    alert('更新失败');
+                }
+            } catch (error) {
+                console.error('更新提案失败:', error);
+            }
+        }
+
+        async function updateMessageStatus(id, status) {
+           try {
+               const response = await fetch(`/api/messages/${id}/status`, {
+                   method: 'PATCH',
+                   headers: {
+                       'Content-Type': 'application/json',
+                       'Authorization': 'admin'
+                   },
+                   body: JSON.stringify({ status })
+               });
+               if (response.ok) {
+                   alert('留言状态更新成功');
+                   fetchMessages();
+               } else {
+                   alert('更新失败');
+               }
+           } catch (error) {
+               console.error('更新留言状态失败:', error);
+           }
+       }
+
+        async function postReply(id) {
+            const content = document.getElementById(`reply-${id}`).value;
+            if (!content.trim()) {
+                alert('回复内容不能为空');
+                return;
+            }
+            try {
+                const token = localStorage.getItem('token'); // Assuming admin token is stored
+                const response = await fetch(`/api/messages/${id}/replies`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTIwMzVjZjc4ZjM2MWFhYmI5NWYyZGUiLCJpYXQiOjE3NjM3MTg2MDcsImV4cCI6MTc3OTI3MDYwN30.gg5KLO6GMA-vvphD_Y8Z7YCgaBYzIbRbsSb3zLMq-wY'
+                    },
+                    body: JSON.stringify({ content })
+                });
+                if (response.ok) {
+                    alert('回复成功');
+                    fetchMessages();
+                } else {
+                    alert('回复失败');
+                }
+            } catch (error) {
+                console.error('回复失败:', error);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', fetchMessages);
+    </script>
+</body>
+</html>

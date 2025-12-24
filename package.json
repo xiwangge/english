@@ -1,0 +1,11 @@
+{
+  "private": true,
+  "workspaces": [
+    "english-learning-app/*",
+    "english-learning-admin",
+    "packages/*"
+  ],
+  "dependencies": {
+    "multer": "^2.0.2"
+  }
+}

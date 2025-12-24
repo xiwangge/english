@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简单 MP3 播放器</title>
+    <style>
+        /* 一些简单的 CSS样式，让页面看起来整洁、居中 */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh; /* 让内容垂直居中 */
+            margin: 0;
+        }
+
+        .player-container {
+            background-color: #ffffff;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 300px;
+        }
+
+        h2 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        /* 美化 audio 标签的宽度 */
+        audio {
+            width: 100%;
+            margin-top: 20px;
+            outline: none; /* 移除点击时的聚焦边框 */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="player-container">
+        <h2>正在播放</h2>
+        <p>示例音乐曲目</p>
+        
+        <audio controls>
+            <source src="http://106.54.236.163/mp3/cat_meow.mp3" type="audio/mpeg">
+            
+            您的浏览器不支持 audio 元素。
+        </audio>
+    </div>
+
+</body>
+</html>

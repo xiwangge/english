@@ -1,0 +1,21 @@
+# Environment variables
+env.sh
+
+# Deployment scripts
+deploy-*.sh
+english-learning-admin/deploy-admin.sh
+english-learning-app/backend/deploy-backend.sh
+english-learning-app/frontend/deploy-frontend.sh
+
+
+# Google credentials
+google.json
+tts-generator/google.json
+
+# System files
+.DS_Store
+
+# Node modules / build artifacts
+node_modules/
+dist/
+.parcel-cache/
