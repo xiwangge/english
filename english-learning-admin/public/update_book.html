@@ -64,7 +64,7 @@
             margin-bottom: 8px;
         }
 
-        input[type="text"], textarea, select {
+        input[type="text"], input[type="number"], textarea, select {
             width: 100%;
             padding: 10px 15px;
             border: 1px solid #ccc;
@@ -83,7 +83,7 @@
             background-position: right 10px center;
         }
 
-        input[type="text"]:focus, textarea:focus {
+        input[type="text"]:focus, input[type="number"]:focus, textarea:focus {
             border-color: #e59f42;
             background-color: #fff;
         }
@@ -126,6 +126,10 @@
 
         .save-button:hover {
             background-color: #d88f32;
+        }
+        .save-button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
         }
 
         /* --- 按钮容器 - 新增教材 --- */
@@ -174,26 +178,26 @@
         }
 
         #bookList ul {
-                    list-style: none;
-                    padding: 0;
-                }
-                
-                #bookList li {
-                    padding: 8px 12px;
-                    cursor: pointer;
-                }
-                
-                #bookList li:nth-child(odd) {
-                    background-color: #f9f9f9; /* 隔行浅灰色 */
-                }
-                
-                #bookList li:hover {
-                    background-color: #e5e5e5; /* 鼠标悬停颜色 */
-                }
-                
-                #bookList li.selected {
-                    background-color: #cce5ff; /* 选中行高亮 */
-                }
+            list-style: none;
+            padding: 0;
+        }
+        
+        #bookList li {
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+        
+        #bookList li:nth-child(odd) {
+            background-color: #f9f9f9; /* 隔行浅灰色 */
+        }
+        
+        #bookList li:hover {
+            background-color: #e5e5e5; /* 鼠标悬停颜色 */
+        }
+        
+        #bookList li.selected {
+            background-color: #cce5ff; /* 选中行高亮 */
+        }
     </style>
 </head>
 <body>
@@ -207,9 +211,7 @@
                 <input type="text" id="searchBookName" placeholder="请输入书籍名称">
                 <button class="save-button" onclick="searchBook()">查询</button>
             </div>
-            <div id="bookList">
-                <!-- 书籍列表显示在这里 -->
-            </div>
+            <div id="bookList"></div>
         </div>
 
         <div class="maintenance-card">
@@ -239,10 +241,8 @@
 
                 <div class="form-right">
                     <label for="coverFile">书籍封面</label>
-                    <div class="cover-upload-area" id="coverUploadArea">
-                        点击或拖拽上传
-                        <input type="file" id="coverFile" style="display: none;" accept="image/*">
-                    </div>
+                    <div class="cover-upload-area" id="coverUploadArea">点击或拖拽上传</div>
+                    <input type="file" id="coverFile" style="display: none;" accept="image/*">
                     <img id="coverImageDisplay" src="" alt="封面图片" style="max-width: 200px; margin-top: 10px; display: none;">
                 </div>
                 <div class="form-group">
@@ -264,7 +264,7 @@
             </div>
             
             <div class="save-button-container">
-                <button class="save-button" onclick="saveBook()">保存书籍</button>
+                <button id="saveBookBtn" class="save-button" onclick="saveBook()">保存书籍</button>
             </div>
             <div class="save-button-container">
                 <button class="save-button" onclick="batchUpdateWords()">批量更新单词</button>
@@ -273,127 +273,143 @@
         </div>
         
         <div class="maintenance-card">
-            <h2>课程内容维护</h2>
-
-            <div class="form-section">
-                <div class="form-left" style="flex: 1;">
-                    <div class="form-group">
-                        <label for="selectBook">选择书籍</label>
-                        <select id="selectBook" style="width: 100%;">
-                            <option value="">请选择书籍</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-left" style="flex: 1;">
-                    <div class="form-group">
-                        <label for="uint"></label>
-                        <input type="text" id="uint" placeholder="新增章节" style="width: 100%;">
-                        <select id="selectUint" style="width: 100%;">
-                            <option value="">请选择</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="batch-add-section">
-                <div class="batch-add-card">
-                    <h3>批量添加单词</h3>
-                    <span>每行一个单词</span>
-                    <textarea id="batchWords" rows="8" placeholder="apple&#10;banana&#10;cherry"></textarea>
-                </div>
-
-                
-            </div>
-
-            <div class="batch-add-section">
-                <div class="batch-add-card">
-                    <h3>批量添加句子</h3>
-                    <span>每行一个句子，以句号结尾。</span>
-                    <textarea id="batchSentences" rows="8" placeholder="This is an apple.&#10;That is a banana.&#10;These are cherries."></textarea>
-                    <button class="save-button" onclick="saveUint()">保存</button>
-                </div>
-            </div>
-        </div>
+             <h2>课程内容维护</h2>
+             <div class="form-section">
+                 <div class="form-left" style="flex: 1;">
+                     <div class="form-group">
+                         <label for="selectBook">选择书籍</label>
+                         <select id="selectBook" style="width: 100%;"><option value="">请选择书籍</option></select>
+                     </div>
+                 </div>
+                 <div class="form-left" style="flex: 1;">
+                     <div class="form-group">
+                         <label for="uint"></label>
+                         <input type="text" id="uint" placeholder="新增章节" style="width: 100%;">
+                         <select id="selectUint" style="width: 100%;"><option value="">请选择</option></select>
+                     </div>
+                 </div>
+             </div>
+             
+             <div class="batch-add-section">
+                 <div class="batch-add-card">
+                     <h3>批量添加单词</h3>
+                     <span>每行一个单词</span>
+                     <textarea id="batchWords" rows="8" placeholder="apple&#10;banana&#10;cherry"></textarea>
+                 </div>
+             </div>
+ 
+             <div class="batch-add-section">
+                 <div class="batch-add-card">
+                     <h3>批量添加句子</h3>
+                     <span>每行一个句子，以句号结尾。</span>
+                     <textarea id="batchSentences" rows="8" placeholder="This is an apple.&#10;That is a banana.&#10;These are cherries."></textarea>
+                     <button class="save-button" onclick="saveUint()">保存</button>
+                 </div>
+             </div>
+         </div>
         
-    </div>
-
-    <script>
-        // 获取上传区域和文件 input 元素
-        const coverUploadArea = document.getElementById('coverUploadArea');
-        const coverFile = document.getElementById('coverFile');
-
-        // 模拟点击上传区域触发文件选择
-        coverUploadArea.addEventListener('click', function() {
-            coverFile.click();
-        });
-
-        // 监听文件选择事件
-        coverFile.addEventListener('change', function() {
-            if (coverFile.files.length > 0) {
-                const file = coverFile.files[0];
-                // 在上传区域显示文件名
-                coverUploadArea.textContent = file.name;
-                 // 预览图片
+     </div>
+ 
+     <script>
+         const coverUploadArea = document.getElementById('coverUploadArea');
+         const coverFile = document.getElementById('coverFile');
+         const coverImageDisplay = document.getElementById('coverImageDisplay');
+         const saveBookBtn = document.getElementById('saveBookBtn');
+         let coverImageUrl = '';
+ 
+         coverUploadArea.addEventListener('click', () => coverFile.click());
+ 
+         coverFile.addEventListener('change', () => {
+             const file = coverFile.files[0];
+             if (file) {
+                 coverUploadArea.textContent = `已选择: ${file.name}`;
                  const reader = new FileReader();
-                 reader.onload = function(e) {
-                     document.getElementById('coverImageDisplay').src = '.' + e.target.result;
-                     document.getElementById('coverImageDisplay').style.display = 'block';
+                 reader.onload = e => {
+                     coverImageDisplay.src = e.target.result;
+                     coverImageDisplay.style.display = 'block';
                  }
                  reader.readAsDataURL(file);
-            } else {
-                coverUploadArea.textContent = '点击或拖拽上传';
-            }
-        });
+             } else {
+                 coverUploadArea.textContent = '点击或拖拽上传';
+             }
+         });
+ 
+         async function saveBook() {
+             saveBookBtn.disabled = true;
+             saveBookBtn.textContent = '保存中...';
 
-        // 保存书籍
-        async function saveBook() {
-            const bookName = document.getElementById('bookName').value;
-            const edition = document.getElementById('edition').value;
-            const publisher = document.getElementById('publisher').value;
-            const description = document.getElementById('description').value;
-            const file = coverFile.files[0];
-            const isFree = document.getElementById('isFree').checked;
-            const isOnShelf = document.getElementById('isOnShelf').checked;
-            const studyTime = document.getElementById('studyTime').value;
-            const credits = document.getElementById('credits').value;
+             const file = coverFile.files[0];
 
-            if (!bookName || !edition || !publisher || !description ) {
-                alert('请填写所有信息并上传封面');
-                return;
-            }
+             // 如果有新文件，则上传到 COS
+             if (file) {
+                try {
+                    // 1. 获取预签名 URL
+                    const presignedUrlResponse = await fetch(`/api/cos/get-presigned-url?filename=${encodeURIComponent(file.name)}`);
+                    if (!presignedUrlResponse.ok) throw new Error('获取上传地址失败');
+                    const { uploadUrl, accessUrl } = await presignedUrlResponse.json();
 
-            const formData = new FormData();
-            formData.append('bookName', bookName);
-            formData.append('edition', edition);
-            formData.append('publisher', publisher);
-            formData.append('description', description);
-            formData.append('cover', file);
-            formData.append('isFree', isFree);
-            formData.append('isOnShelf', isOnShelf);
-            formData.append('studyTime', studyTime);
-            formData.append('credits', credits);
-
-            try {
-                const response = await fetch('/api/book/create', {
-                    method: 'POST',
-                    body: formData,
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    alert('书籍保存成功!');
-                } else {
-                    alert('书籍保存失败：' + data.message);
+                    // 2. 上传文件到 COS
+                    const uploadResponse = await fetch(uploadUrl, {
+                        method: 'PUT',
+                        body: file,
+                        headers: { 'Content-Type': file.type }
+                    });
+                    if (!uploadResponse.ok) throw new Error('上传封面到云存储失败');
+                    
+                    coverImageUrl = accessUrl; // 保存最终可访问的 URL
+                } catch (error) {
+                    console.error('上传封面失败:', error);
+                    alert('上传封面失败: ' + error.message);
+                    saveBookBtn.disabled = false;
+                    saveBookBtn.textContent = '保存书籍';
+                    return;
                 }
-            } catch (error) {
-                console.error('保存书籍失败:', error);
-                alert('保存书籍失败，请稍后重试');
-            }
-        }
+             }
 
-        // 获取书籍列表
-        async function getBookList() {
+             // 3. 提交表单数据到后端
+             const formData = new FormData();
+             formData.append('bookName', document.getElementById('bookName').value);
+             formData.append('edition', document.getElementById('edition').value);
+             formData.append('publisher', document.getElementById('publisher').value);
+             formData.append('description', document.getElementById('description').value);
+             formData.append('isFree', document.getElementById('isFree').checked);
+             formData.append('isOnShelf', document.getElementById('isOnShelf').checked);
+             formData.append('studyTime', document.getElementById('studyTime').value);
+             formData.append('credits', document.getElementById('credits').value);
+             
+             // 如果之前已有封面（例如编辑时），或者新上传了封面，则添加 URL
+             if (coverImageUrl) {
+                formData.append('coverImageUrl', coverImageUrl);
+             } else {
+                // 确保即使没有新文件，也把当前显示的图片URL传过去
+                const currentSrc = coverImageDisplay.src;
+                if (currentSrc && currentSrc.startsWith('http')) {
+                    formData.append('coverImageUrl', currentSrc);
+                }
+             }
+
+             try {
+                 const response = await fetch('/api/book/create', {
+                     method: 'POST',
+                     body: formData,
+                 });
+                 const data = await response.json();
+                 if (response.ok) {
+                     alert('书籍保存成功!');
+                 } else {
+                     alert('书籍保存失败：' + data.message);
+                 }
+             } catch (error) {
+                 console.error('保存书籍失败:', error);
+                 alert('保存书籍失败，请稍后重试');
+             } finally {
+                saveBookBtn.disabled = false;
+                saveBookBtn.textContent = '保存书籍';
+             }
+         }
+ 
+         async function getBookList() {
+            // ... (rest of the script remains the same)
             try {
                 const response = await fetch('/api/book/list');
                 const data = await response.json();
@@ -412,44 +428,36 @@
         
             } catch (error) {
                 console.error('获取书籍列表失败:', error);
-                //alert('获取书籍列表失败，请稍后重试');
             }
-        }
-
-        // 获取列表
-        async function getUintList(bookId) {
+         }
+ 
+         async function getUintList(bookId) {
             try {
                 const response = await fetch(`/api/book/getUints?bookId=${bookId}`);
                 const data = await response.json();
                 if (response.ok) {
                     const selectUint = document.getElementById('selectUint');
-                    // 清空列表
                     selectUint.innerHTML = '<option value="">请选择</option>';
                     const unitData = {};
                     data.forEach(unit => {
                         const option = document.createElement('option');
-                        option.value = unit.unit; // 使用 unit.unit 作为 value
+                        option.value = unit.unit;
                         option.textContent = unit.unit;
                         selectUint.appendChild(option);
 
-                        unitData[unit.unit] = { // 使用 unit.unit 作为键
+                        unitData[unit.unit] = {
                             words: unit.words,
                             sentences: unit.sentences
                         };
                     });
-                    // 检查 unitData input 是否已存在
                     let unitDataInput = document.getElementById('unitData');
                     if (!unitDataInput) {
-                        // 如果不存在，则创建并添加到 body
                         unitDataInput = document.createElement('input');
                         unitDataInput.type = 'hidden';
                         unitDataInput.id = 'unitData';
                         document.body.appendChild(unitDataInput);
                     }
-                    // 更新其值为最新的 unitData
                     unitDataInput.value = JSON.stringify(unitData);
-
-                    console.log(unitData);
                 } else {
                     alert('获取列表失败：' + data.message);
                 }
@@ -457,214 +465,167 @@
                 console.error('获取列表失败:', error);
                 alert('获取列表失败，请稍后重试');
             }
-        }
+         }
+ 
+         async function searchBook() {
+             const bookName = document.getElementById('searchBookName').value;
+             try {
+                 let url = '/api/book/search';
+                 if (bookName) {
+                     url += '?bookName=' + encodeURIComponent(bookName);
+                 }
+                 const response = await fetch(url);
+                 const data = await response.json();
+                 if (response.ok) {
+                     const bookListDiv = document.getElementById('bookList');
+                     bookListDiv.innerHTML = ''; 
 
-        // 查询书籍
-        async function searchBook() {
-            const bookName = document.getElementById('searchBookName').value;
-            try {
-                const url = '/api/book/search';
-                if (bookName) {
-                    url = url + '?bookName=' + bookName
-                }
-                const response = await fetch(url);
-                const data = await response.json();
-                if (response.ok) {
-                    const bookListDiv = document.getElementById('bookList');
-                    bookListDiv.innerHTML = ''; // 清空之前的列表
+                     if (data.length === 0) {
+                         bookListDiv.textContent = '未找到相关书籍';
+                     } else {
+                         const ul = document.createElement('ul');
+                         data.forEach(book => {
+                             const li = document.createElement('li');
+                             li.textContent = `${book.bookName} - ${book.edition} - ${book.publisher}`;
+                             li.addEventListener('click', () => {
+                                 document.querySelectorAll('#bookList li.selected').forEach(el => el.classList.remove('selected'));
+                                 li.classList.add('selected');
+                                 fillBookInfo(book);
+                             });
+                             ul.appendChild(li);
+                         });
+                         bookListDiv.appendChild(ul);
+                     }
+                 } else {
+                     alert('查询书籍失败：' + data.message);
+                 }
+             } catch (error) {
+                 console.error('查询书籍失败:', error);
+                 alert('查询书籍失败，请稍后重试');
+             }
+         }
+ 
+         let currentBookId = null;
+         function fillBookInfo(book) {
+             currentBookId = book._id;
+             document.getElementById('bookName').value = book.bookName;
+             document.getElementById('edition').value = book.edition;
+             document.getElementById('publisher').value = book.publisher;
+             document.getElementById('description').value = book.description;
+             document.getElementById('isFree').checked = book.isFree;
+             document.getElementById('isOnShelf').checked = book.isOnShelf;
+             document.getElementById('studyTime').value = book.studyTime;
+             document.getElementById('credits').value = book.credits;
+             
+             coverImageDisplay.src = book.coverImage;
+             coverImageDisplay.style.display = 'block';
+             coverImageUrl = book.coverImage; // Store the URL for resubmission
+         }
+ 
+         document.getElementById('selectBook').addEventListener('change', function() {
+             getUintList(this.value);
+         });
+ 
+         document.getElementById('selectUint').addEventListener('change', function() {
+            document.getElementById('uint').value = this.value;
+            const unitDataInput = document.getElementById('unitData');
+            if (!unitDataInput) return;
+            const unitData = JSON.parse(unitDataInput.value);
+            const uint = this.value;
+            if (!unitData[uint]) return;
 
-                    if (data.length === 0) {
-                        bookListDiv.textContent = '未找到相关书籍';
-                    } else {
-                        const ul = document.createElement('ul');
-                        data.forEach(book => {
-                            const li = document.createElement('li');
-                            li.textContent = `${book.bookName} - ${book.edition} - ${book.publisher}`;
-                        li.addEventListener('click', () => {
-                                // 移除之前选中的高亮
-                                document.querySelectorAll('#bookList li.selected').forEach(el => el.classList.remove('selected'));
-                                // 当前行高亮
-                                li.classList.add('selected');
-                                fillBookInfo(book);
-                            });
-                        ul.appendChild(li);
-                    });
-                    bookListDiv.appendChild(ul);
-                    
-                    }
-                } else {
-                    alert('查询书籍失败：' + data.message);
-                }
-            } catch (error) {
-                console.error('查询书籍失败:', error);
-                alert('查询书籍失败，请稍后重试');
-            }
-    }
-
-        // 填充书籍信息到表单
-        let currentBookId = null;
-        function fillBookInfo(book) {
-            currentBookId = book._id;
-            document.getElementById('bookName').value = book.bookName;
-            document.getElementById('edition').value = book.edition;
-            document.getElementById('publisher').value = book.publisher;
-            document.getElementById('description').value = book.description;
-            document.getElementById('isFree').checked = book.isFree;
-
-            document.getElementById('isOnShelf').checked = book.isOnShelf;
-            document.getElementById('studyTime').value = book.studyTime;
-            document.getElementById('credits').value = book.credits; // 填充学分
+            const words = unitData[uint].words;
+            const sentences = unitData[uint].sentences;
             
-            // 显示封面图片
-            document.getElementById('coverImageDisplay').src = book.coverImage;
-            document.getElementById('coverImageDisplay').style.display = 'block';
-        }
-
-        let selectedBookId = null;
-    
-        // 监听书籍选择事件
-        document.getElementById('selectBook').addEventListener('change', function() {
-            const bookId = this.value;
-            getUintList(bookId);
-        });
-
-       // 监听选择事件
-       document.getElementById('selectUint').addEventListener('change', function() {
-           document.getElementById('uint').value = this.value;
-           const bookId = document.getElementById('selectBook').value;
-           const uint = this.value;
-
-           // 获取隐藏的 input 元素
-           const unitDataInput = document.getElementById('unitData');
-           if (!unitDataInput) {
-               console.warn('unitDataInput is not defined.');
-               return;
-           }
-
-           // 从 input 元素的 value 属性中解析 JSON 数据
-           const unitData = JSON.parse(unitDataInput.value);
-
-           if (!unitData[uint]) {
-               console.warn(`uintData[${uint}] is not defined.`);
-               return;
-           }
-
-           const words = unitData[uint].words;
-           const sentences = unitData[uint].sentences;
-
-           // 在这里添加代码以显示单词和句子
-           document.getElementById('batchWords').value = words ? words.map(word => word.text).join('\n') : '';
-           
-           // 【关键修正】
-           // 错误代码：sentences.map(sentence => sentence.sentence ? sentence.sentence.text : '')
-           // 正确代码：
-           document.getElementById('batchSentences').value = sentences ? sentences.map(sentence => sentence.text).join('\n') : '';
-        });
-
-        // 页面加载完成后获取书籍列表
-        window.addEventListener('load', getBookList);
-
-        async function saveUint() {
-            const bookId = document.getElementById('selectBook').value;
-            const uint = document.getElementById('uint').value;
-            const words = document.getElementById('batchWords').value;
-            const sentences = document.getElementById('batchSentences').value;
-            const wordArray = words.split('\n').filter(t => t.trim() !== '');
-            const sentenceArray = sentences.split('\n').filter(t => t.trim() !== '');
-
-            if (!bookId || !uint) {
-                alert('请选择书籍、');
-                return;
-            }
-
-            const bookData = {
-                bookId: bookId,
-                units: [{
-                    uint: uint,
-                    words: wordArray,
-                    sentences: sentenceArray.map(sentence => ({ text: sentence }))
-                }]
-            };
-
-            try {
-                const response = await fetch('/api/book/createUnit', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(bookData)
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    alert('课程内容保存成功!');
-                } else {
-                    alert('课程内容保存失败：' + data.message);
-                }
-            } catch (error) {
-                console.error('保存课程内容失败:', error);
-                alert('保存课程内容失败，请稍后重试');
-            }
-        }
-
-        async function batchUpdateWords() {
-            if (!currentBookId) {
-                alert('请选择书籍');
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/book/batchUpdateWordsHybrid', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ bookId: currentBookId })
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    alert('批量更新单词成功!');
-                } else {
-                    alert('批量更新单词失败：' + data.message);
-                }
-            } catch (error) {
-                console.error('批量更新单词失败:', error);
-                alert('批量更新单词失败，请稍后重试');
-            }
-        }
-
-        async function batchUpdateSentences() {
-            if (!currentBookId) {
-                alert('请选择书籍');
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/book/batchUpdateSentencesHybrid', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ bookId: currentBookId })
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    alert('批量更新句子成功!');
-                } else {
-                    alert('批量更新句子失败：' + data.message);
-                }
-            } catch (error) {
-                console.error('批量更新句子失败:', error);
-                alert('批量更新句子失败，请稍后重试');
-            }
-        }
-        
-    </script>
+            document.getElementById('batchWords').value = words ? words.map(word => word.text).join('\n') : '';
+            document.getElementById('batchSentences').value = sentences ? sentences.map(sentence => sentence.text).join('\n') : '';
+         });
+ 
+         window.addEventListener('load', getBookList);
+ 
+         async function saveUint() {
+             const bookId = document.getElementById('selectBook').value;
+             const uint = document.getElementById('uint').value;
+             const words = document.getElementById('batchWords').value.split('\n').filter(t => t.trim() !== '');
+             const sentences = document.getElementById('batchSentences').value.split('\n').filter(t => t.trim() !== '');
+ 
+             if (!bookId || !uint) {
+                 alert('请选择书籍和章节');
+                 return;
+             }
+ 
+             const bookData = {
+                 bookId: bookId,
+                 units: [{
+                     uint: uint,
+                     words: words,
+                     sentences: sentences.map(sentence => ({ text: sentence }))
+                 }]
+             };
+ 
+             try {
+                 const response = await fetch('/api/book/createUnit', {
+                     method: 'POST',
+                     headers: { 'Content-Type': 'application/json' },
+                     body: JSON.stringify(bookData)
+                 });
+                 const data = await response.json();
+                 if (response.ok) {
+                     alert('课程内容保存成功!');
+                 } else {
+                     alert('课程内容保存失败：' + data.message);
+                 }
+             } catch (error) {
+                 console.error('保存课程内容失败:', error);
+                 alert('保存课程内容失败，请稍后重试');
+             }
+         }
+ 
+         async function batchUpdateWords() {
+             if (!currentBookId) {
+                 alert('请选择书籍');
+                 return;
+             }
+             try {
+                 const response = await fetch('/api/book/batchUpdateWordsHybrid', {
+                     method: 'POST',
+                     headers: { 'Content-Type': 'application/json' },
+                     body: JSON.stringify({ bookId: currentBookId })
+                 });
+                 const data = await response.json();
+                 if (response.ok) {
+                     alert('批量更新单词成功!');
+                 } else {
+                     alert('批量更新单词失败：' + data.message);
+                 }
+             } catch (error) {
+                 console.error('批量更新单词失败:', error);
+                 alert('批量更新单词失败，请稍后重试');
+             }
+         }
+ 
+         async function batchUpdateSentences() {
+             if (!currentBookId) {
+                 alert('请选择书籍');
+                 return;
+             }
+             try {
+                 const response = await fetch('/api/book/batchUpdateSentencesHybrid', {
+                     method: 'POST',
+                     headers: { 'Content-Type': 'application/json' },
+                     body: JSON.stringify({ bookId: currentBookId })
+                 });
+                 const data = await response.json();
+                 if (response.ok) {
+                     alert('批量更新句子成功!');
+                 } else {
+                     alert('批量更新句子失败：' + data.message);
+                 }
+             } catch (error) {
+                 console.error('批量更新句子失败:', error);
+                 alert('批量更新句子失败，请稍后重试');
+             }
+         }
+     </script>
 </body>
-
 </html>

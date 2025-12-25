@@ -1291,8 +1291,8 @@ button.active {
 /* 【核心改动】每束光独立应用动画，实现旋转和动态合并 */
 .spotlight-wrapper.state-scattered .beam-1 { animation: rotate-and-merge-1 8s infinite alternate ease-in-out; }
 .spotlight-wrapper.state-scattered .beam-2 { animation: rotate-and-merge-2 8s infinite alternate ease-in-out; }
-.spotlight-wrapper.state-scattered .beam-3 { animation: rotate-and-merge-3 8s infinite alternate ease-in-out; }
-.spotlight-wrapper.state-scattered .beam-4 { animation: rotate-and-merge-4 8s infinite alternate ease-in-out; }
+.spotlight-wrapper.state-scattered .beam-3 { animation: rotate-and-merge-3 4s infinite alternate ease-in-out; }
+.spotlight-wrapper.state-scattered .beam-4 { animation: rotate-and-merge-4 4s infinite alternate ease-in-out; }
 
 
 /* 【核心动画】旋转并合并的关键帧 */

@@ -22,13 +22,13 @@ const createSentenceMp3 = 'http://43.173.248.180:3000/synthesize/sentence';
 
 // 腾讯云 COS 配置
 const cos = new COS({
-    SecretId: '', // 留空，由用户填写
-    SecretKey: '', // 留空，由用户填写
+    SecretId: process.env.COS_SECRET_ID,
+    SecretKey: process.env.COS_SECRET_KEY,
 });
 
 const cosConfig = {
-    Bucket: 'your-bucket-name', // 替换为你的 Bucket 名称
-    Region: 'ap-guangzhou',      // 替换为你的 Bucket 所在地域
+    Bucket: process.env.COS_BUCKET,
+    Region: process.env.COS_REGION,
 };
 
 // Multer 配置 - 使用内存存储
@@ -134,36 +134,73 @@ router.patch('/users/:id/userType', async (req, res) => {
   }
 });
 
-// 创建书籍
+// --- 新增：获取 COS 预签名 URL ---
+router.get('/cos/get-presigned-url', async (req, res) => {
+    const { filename } = req.query;
+    if (!filename) {
+        return res.status(400).json({ message: 'Filename is required.' });
+    }
+
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const fileExtension = path.extname(filename);
+    const key = `images/cover-${uniqueSuffix}${fileExtension}`;
+
+    const params = {
+        Bucket: cosConfig.Bucket,
+        Region: cosConfig.Region,
+        Key: key,
+        Method: 'PUT',
+        Expires: 600, // 签名有效期 10 分钟
+    };
+
+    cos.getSignedUrl(params, (err, data) => {
+        if (err) {
+            console.error('Error getting presigned URL from COS', err);
+            return res.status(500).json({ message: 'Failed to get upload URL.' });
+        }
+        res.status(200).json({
+            uploadUrl: data.SignedUrl,
+            accessUrl: `https://${cosConfig.Bucket}.cos.${cosConfig.Region}.myqcloud.com/${key}`
+        });
+    });
+});
+
+
+// 创建/更新书籍 (已改造)
 router.post('/book/create', upload.single('cover'), async (req, res) => {
     try {
-        const { bookName, edition, publisher, description, isFree, isOnShelf, studyTime, credits } = req.body;
-        const cover = req.file;
+        const { bookName, edition, publisher, description, isFree, isOnShelf, studyTime, credits, coverImageUrl } = req.body;
+        const coverFile = req.file;
+        let coverImage = coverImageUrl; // 优先使用传入的 URL
 
-        if (!bookName || !edition || !publisher || !description || !cover) {
-            return res.status(400).json({ message: '请填写所有信息并上传封面' });
+        if (!bookName || !edition || !publisher || !description) {
+            return res.status(400).json({ message: '请填写所有书籍基本信息' });
         }
 
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const fileExtension = path.extname(cover.originalname);
-        const filename = `cover-${uniqueSuffix}${fileExtension}`;
+        // 如果有文件上传，则处理文件并覆盖 URL
+        if (coverFile) {
+             const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+             const fileExtension = path.extname(coverFile.originalname);
+             const filename = `cover-${uniqueSuffix}${fileExtension}`;
 
-        await new Promise((resolve, reject) => {
-            cos.putObject({
-                Bucket: cosConfig.Bucket,
-                Region: cosConfig.Region,
-                Key: `images/${filename}`,
-                Body: cover.buffer,
-            }, (err, data) => {
-                if (err) {
-                    return reject(err);
-                }
-                resolve(data);
-            });
-        });
+             await new Promise((resolve, reject) => {
+                 cos.putObject({
+                     Bucket: cosConfig.Bucket,
+                     Region: cosConfig.Region,
+                     Key: `images/${filename}`,
+                     Body: coverFile.buffer,
+                 }, (err, data) => {
+                     if (err) return reject(err);
+                     resolve(data);
+                 });
+             });
+             coverImage = `https://${cosConfig.Bucket}.cos.${cosConfig.Region}.myqcloud.com/images/${filename}`;
+        }
 
-        const coverImage = `https://${cosConfig.Bucket}.cos.${cosConfig.Region}.myqcloud.com/images/${filename}`;
-
+        if (!coverImage) {
+            return res.status(400).json({ message: '请上传封面或提供封面URL' });
+        }
+        
         // 查找是否已存在同名书籍
         let book = await Book.findOne({ bookName: bookName });
 
