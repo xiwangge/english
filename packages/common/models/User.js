@@ -16,7 +16,9 @@ const userSchema = new mongoose.Schema({
   userType: { type: String, enum: ['normal', 'admin', 'support'], default: 'normal' }, // 用户类型：normal-普通用户, admin-系统管理员, support-客服
   credits: { type: Number, default: 0 }, // 学分
   golds: { type: Number, default: 0 }, // 金币
-  group: { type: mongoose.Schema.Types.ObjectId, ref: 'Group', default: null } // 所属群组
+  group: { type: mongoose.Schema.Types.ObjectId, ref: 'Group', default: null }, // 所属群组
+  activeSessionId: { type: String, default: null }, // 当前有效的会话ID
+  lastLoginIP: { type: String, default: null } // 上次登录IP
 }, { timestamps: true, collection: 'users' });
 
 const User = mongoose.model('User', userSchema);

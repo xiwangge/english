@@ -8,13 +8,13 @@
     <div class="cloud c2"></div>
     <div class="cloud c3"></div>
 
-    <div id="ui-layer">
+    <div id="ui-layer" v-if="gameStarted">
       <div>Score: <span id="score">0</span></div>
       <div style="font-size: 14px; color: #888;">Level: <span id="level">1</span></div>
       <button id="toggle-sound" class="sound-btn" title="开关声音">🔊</button>
     </div>
 
-    <div id="input-display"></div>
+    <div id="input-display" v-if="gameStarted"></div>
 
     <div id="game-over" v-show="isGameOver">
       <h1 style="color: #4A90E2; margin-bottom: 5px;">✨ Game Over ✨</h1>
@@ -24,12 +24,30 @@
         <div id="leaderboard-list"></div>
         <div id="my-rank-display" class="current-rank-info">Your Rank: # --</div>
       </div>
-      <button id="restart-btn" @click="resetGame">Play Again</button>
+      <button id="restart-btn" @click="resetAndShowDifficulty">Play Again</button>
     </div>
 
-    <div id="start-screen" v-show="!gameStarted">
-      <h1 style="color: #4A90E2; font-size: 48px; text-shadow: 0 5px 15px rgba(0,0,0,0.1);">Bubble Typer</h1>
-      <button class="start-btn" @click="startGame">START GAME 🎵</button>
+    <!-- New Difficulty Selection Screen -->
+    <div id="difficulty-screen" v-if="!gameStarted">
+        <h1 style="color: #4A90E2; font-size: 48px; text-shadow: 0 5px 15px rgba(0,0,0,0.1);">Bubble Typer</h1>
+        <div class="difficulty-selection">
+            <div class="selector-group">
+                <label for="category-select">选择词库:</label>
+                <select id="category-select" v-model="selectedCategory" @change="updateLevels">
+                    <option disabled value="">请选择难度</option>
+                    <option v-for="cat in categories" :key="cat.file" :value="cat.file">{{ cat.name }}</option>
+                </select>
+            </div>
+            <div class="selector-group" v-if="selectedCategory">
+                <label for="level-select">选择关卡:</label>
+                <select id="level-select" v-model="selectedLevel">
+                    <option v-for="level in levels" :key="level.value" :value="level.value">{{ level.text }}</option>
+                </select>
+            </div>
+        </div>
+        <button class="start-btn" @click="startGame" :disabled="!selectedCategory || !selectedLevel">
+            {{ isLoading ? '加载中...' : 'START GAME 🎵' }}
+        </button>
     </div>
 
     <canvas id="gameCanvas" ref="gameCanvas"></canvas>
@@ -42,9 +60,26 @@ import { ref, onMounted, onUnmounted } from 'vue';
 const gameCanvas = ref(null);
 const isGameOver = ref(false);
 const gameStarted = ref(false);
+const isLoading = ref(false);
+
+// Difficulty Selection State
+const categories = ref([
+    { name: '1. 初中', file: '1 初中-乱序.txt' },
+    { name: '2. 高中', file: '2 高中-乱序.txt' },
+    { name: '3. 四级', file: '3 四级-乱序.txt' },
+    { name: '4. 六级', file: '4 六级-乱序.txt' },
+    { name: '5. 考研', file: '5 考研-乱序.txt' },
+    { name: '6. 托福', file: '6 托福-乱序.txt' },
+    { name: '7. SAT', file: '7 SAT-乱序.txt' },
+]);
+const selectedCategory = ref('');
+const levels = ref([]);
+const selectedLevel = ref(null);
+const fullWordList = ref([]);
+let gameWords = []; // This will hold the sliced words for the current game
 
 let ctx;
-let inputDisplay, scoreEl, levelEl, gameOverEl, finalScoreEl, leaderboardListEl, myRankDisplayEl, startScreen, bgm, soundBtn;
+let inputDisplay, scoreEl, levelEl, finalScoreEl, leaderboardListEl, myRankDisplayEl, bgm, soundBtn;
 let width, height;
 let bubbles = [];
 let bullets = [];
@@ -59,15 +94,6 @@ let globalWind = 0;
 let windTime = 0;
 let isMuted = false;
 let audioCtx;
-
-const words = [
-    "sky", "sun", "cat", "dog", "run", "joy",
-    "bird", "fish", "blue", "wind", "hope", "moon",
-    "dream", "smile", "happy", "ocean", "music", "dance",
-    "bubble", "friend", "flower", "purple", "summer", "winter",
-    "beautiful", "wonderful", "sunshine", "elephant", "adventure",
-    "butterfly", "chocolate", "strawberry", "everything", "technology"
-];
 
 const cannon = { x: 0, y: 0, angle: -Math.PI / 2, length: 60 };
 
@@ -95,21 +121,87 @@ function initialize() {
     const canvas = gameCanvas.value;
     if (!canvas) return;
     ctx = canvas.getContext('2d');
+    bgm = document.getElementById('bgm');
+}
 
+function initializeUI() {
     inputDisplay = document.getElementById('input-display');
     scoreEl = document.getElementById('score');
     levelEl = document.getElementById('level');
-    gameOverEl = document.getElementById('game-over');
     finalScoreEl = document.getElementById('final-score');
     leaderboardListEl = document.getElementById('leaderboard-list');
     myRankDisplayEl = document.getElementById('my-rank-display');
-    startScreen = document.getElementById('start-screen');
-    bgm = document.getElementById('bgm');
     soundBtn = document.getElementById('toggle-sound');
-
     bgm.volume = 0.3;
     soundBtn.addEventListener('click', toggleSound);
 }
+
+// --- Difficulty Selection Logic ---
+async function updateLevels() {
+    if (!selectedCategory.value) return;
+    isLoading.value = true;
+    try {
+        const response = await fetch(`/words/${selectedCategory.value}`);
+        const text = await response.text();
+        // Corrected parsing logic: split by line, then take the first tab-separated value.
+        const words = text.split('\n')
+                          .map(line => line.split('\t')[0].trim())
+                          .filter(word => word.length > 0);
+        fullWordList.value = words;
+
+        levels.value = [];
+        const chunkSize = 200;
+        for (let i = 0; i < words.length; i += chunkSize) {
+            levels.value.push({
+                text: `单词 ${i + 1} - ${Math.min(i + chunkSize, words.length)}`,
+                value: `${i}-${i + chunkSize}`
+            });
+        }
+        if (levels.value.length > 0) {
+            selectedLevel.value = levels.value[0].value;
+        }
+    } catch (error) {
+        console.error("Failed to load word list:", error);
+    } finally {
+        isLoading.value = false;
+    }
+}
+
+async function startGame() {
+    if (!selectedCategory.value || !selectedLevel.value || isLoading.value) return;
+
+    const [start, end] = selectedLevel.value.split('-').map(Number);
+    gameWords = fullWordList.value.slice(start, end);
+
+    if (gameWords.length === 0) {
+        alert('选中的关卡没有单词，请重新选择。');
+        return;
+    }
+
+    gameStarted.value = true;
+
+    // We need to wait for the DOM to update before initializing UI elements
+    await new Promise(resolve => setTimeout(resolve, 0));
+    initializeUI();
+
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (!isMuted) {
+        bgm.play().catch(e => console.log(e));
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+    initGame();
+}
+
+function resetAndShowDifficulty() {
+    isGameOver.value = false;
+    gameStarted.value = false;
+    // Optional: Reset selections
+    // selectedCategory.value = '';
+    // selectedLevel.value = null;
+    // levels.value = [];
+}
+// --- End of Difficulty Selection Logic ---
+
 
 function playPopSound() {
     if (isMuted || !audioCtx) return;
@@ -165,7 +257,7 @@ function resize() {
 
 class Bubble {
     constructor() {
-        this.text = words[Math.floor(Math.random() * words.length)];
+        this.text = gameWords[Math.floor(Math.random() * gameWords.length)]; // Use gameWords
         const baseRadius = 35;
         const charFactor = 5;
         this.radius = baseRadius + (this.text.length * charFactor) + (Math.random() * 5);
@@ -327,16 +419,6 @@ class Particle {
     }
 }
 
-function startGame() {
-    gameStarted.value = true;
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (!isMuted) {
-        bgm.play().catch(e => console.log(e));
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-    }
-    initGame();
-}
-
 function resetGame() {
     initGame();
 }
@@ -415,8 +497,7 @@ function showGameOverScreen() {
 
 
 function handleKeyDown(e) {
-    if (isGameOver.value) return;
-    if (!gameStarted.value) { startGame(); return; }
+    if (isGameOver.value || !gameStarted.value) return;
 
     if (e.key.length === 1 && e.key.match(/[a-z]/i)) {
         currentInput += e.key.toLowerCase();
@@ -514,7 +595,7 @@ function loop(timestamp) {
             const index = bubbles.indexOf(b.target);
             if (index !== -1) {
                 createExplosion(bubbles[index].x, bubbles[index].y, '#fff');
-                const wordToSpeak = b.wordToSpeak; // 在泡泡被移除前获取单词
+                const wordToSpeak = b.wordToSpeak;
                 bubbles.splice(index, 1);
                 score += 10;
                 scoreEl.innerText = score;
@@ -647,17 +728,57 @@ function loop(timestamp) {
 }
 #restart-btn:hover { transform: scale(1.05); }
 
-#start-screen {
+#difficulty-screen {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(255,255,255,0.4); backdrop-filter: blur(10px);
     z-index: 30; display: flex; justify-content: center; align-items: center; flex-direction: column;
+    gap: 2rem;
 }
+
+.difficulty-selection {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    background: rgba(255, 255, 255, 0.7);
+    padding: 2rem;
+    border-radius: 20px;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+}
+
+.selector-group {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.selector-group label {
+    font-weight: 600;
+    color: #4A90E2;
+}
+
+.selector-group select {
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid #a1c4fd; /* Lighter blue border */
+    background-color: #f0f8ff; /* Very light blue background */
+    font-family: 'Quicksand', sans-serif;
+    min-width: 250px;
+    font-size: 16px;
+    color: #4A90E2; /* Same blue as the title */
+    font-weight: 600; /* Bolder text */
+}
+
 .start-btn {
     padding: 15px 40px; font-size: 24px; background: #4A90E2; color: white;
     border: none; border-radius: 50px; cursor: pointer;
     box-shadow: 0 10px 20px rgba(74, 144, 226, 0.3);
     font-family: 'Quicksand', sans-serif; font-weight: bold;
     animation: pulse 2s infinite;
+}
+.start-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    animation: none;
 }
 @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 </style>

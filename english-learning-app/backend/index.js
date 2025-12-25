@@ -27,7 +27,6 @@ import Group from '@english-learning/common/models/Group.js'; // 引入 Group �
 import Product from '@english-learning/common/models/Product.js';
 import Order from '@english-learning/common/models/Order.js';
 import solarlunar from 'solarlunar';
-import WXPay from 'wechatpay-node-v3';
 
 const verificationCodeLength = 6; // 验证码长度
 
@@ -67,17 +66,39 @@ app.use(express.json());
 // --- 中间件 ---
 
 // JWT 认证中间件
-const auth = (req, res, next) => {
+// JWT 认证中间件 (增强版，带会话验证)
+const auth = async (req, res, next) => {
   const token = req.headers.authorization;
   if (!token) {
     return res.status(401).json({ message: '未授权' });
   }
   try {
     const decoded = jwt.verify(token, process.env.token_secretKey);
-    req.userId = decoded.userId;
+    const { userId, sessionId } = decoded;
+
+    // 强制要求新版 Token 必须包含 sessionId
+    if (!sessionId) {
+      return res.status(401).json({ message: 'Token 已失效，请重新登录' });
+    }
+
+    const user = await User.findById(userId).select('+activeSessionId'); // 确保查询到 activeSessionId
+    if (!user) {
+      return res.status(401).json({ message: '用户不存在' });
+    }
+
+    // 核心验证：比较 Token 中的 sessionId 和数据库中的 activeSessionId
+    if (user.activeSessionId !== sessionId) {
+      return res.status(401).json({ message: '您的账号已在别处登录，请重新登录' });
+    }
+
+    req.userId = userId;
     next();
   } catch (error) {
-    return res.status(401).json({ message: '无效的 token' });
+    if (error instanceof jwt.JsonWebTokenError || error instanceof jwt.TokenExpiredError) {
+      return res.status(401).json({ message: 'Token 无效或已过期，请重新登录' });
+    }
+    console.error('认证中间件错误:', error);
+    return res.status(500).json({ message: '服务器认证失败' });
   }
 };
 
@@ -329,11 +350,6 @@ app.get('/api/auth/callback', async (req, res) => {
           }
         }
       } 
-      // else {
-      //   user.nickname = nickname;
-      //   user.avatar = headimgurl;
-      //   await user.save();
-      // }
 
     // 2. === 关键修改：直接在这里生成 JWT Token ===
     const token = jwt.sign(
@@ -396,6 +412,73 @@ app.get('/api/auth/callback', async (req, res) => {
     res.status(500).send('微信授权失败，请重试。');
   }
 });
+
+// --- SSO 单点登录验证接口 (JWT方案 + 会话绑定) ---
+app.post('/api/verify-sso-code', async (req, res) => {
+  const { code: ssoToken } = req.body;
+  if (!ssoToken) {
+    return res.status(400).json({ message: '缺少授权码' });
+  }
+
+  try {
+    // 1. 使用共享密钥验证一次性 SSO Token
+    const decoded = jwt.verify(ssoToken, process.env.token_secretKey);
+    const { userId } = decoded;
+
+    if (!userId) {
+      return res.status(400).json({ message: '无效的授权码：缺少用户信息' });
+    }
+
+    // 2. 查找用户
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: '关联的用户不存在' });
+    }
+
+    // 3. 生成新的会话 ID 并更新用户信息
+    const newSessionId = uuidv4();
+    user.activeSessionId = newSessionId;
+    user.lastLoginIP = req.headers['x-forwarded-for']?.split(',').shift() || req.ip;
+    await user.save();
+
+    // 4. 为用户生成一个新的、包含 sessionId 的应用 Token
+    const appToken = jwt.sign(
+      { userId: user._id, sessionId: newSessionId }, // 在 payload 中加入 sessionId
+      process.env.token_secretKey,
+      { expiresIn: config.expiresIn }
+    );
+
+    res.status(200).json({ token: appToken });
+
+  } catch (error) {
+    if (error instanceof jwt.JsonWebTokenError || error instanceof jwt.TokenExpiredError) {
+      return res.status(401).json({ message: '授权码无效或已过期' });
+    }
+    console.error('SSO 验证失败:', error);
+    res.status(500).json({ message: '服务器处理单点登录失败' });
+  }
+});
+
+// --- 为跳转其他站点生成 SSO Code 的接口 ---
+app.post('/api/sso/generate', auth, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    // 使用共享密钥为当前用户生成一个短时效 (例如 60 秒) 的 SSO Token
+    const ssoToken = jwt.sign(
+      { userId: userId },
+      process.env.token_secretKey, // 必须使用共享密钥
+      { expiresIn: '60s' } // 设置较短的有效期
+    );
+
+    res.status(200).json({ sso_code: ssoToken });
+
+  } catch (error) {
+    console.error('生成 SSO Code 失败:', error);
+    res.status(500).json({ message: '生成授权码失败' });
+  }
+});
+
 
 // 发送邮箱验证码接口
 app.post('/api/sendVerificationCode', async (req, res) => {
@@ -1522,6 +1605,7 @@ app.post('/api/messages/:id/replies', auth, async (req, res) => {
           }
         });
 
+/*
 // --- 产品 API ---
 app.get('/api/products', async (req, res) => {
     try {
@@ -1649,6 +1733,7 @@ app.get('/api/payment/query-status/:orderNo', auth, async (req, res) => {
         res.status(500).json({ message: '服务器查询订单状态失败' });
     }
 });
+*/
 
         // --- 黄历 API (使用 solarlunar 库) ---
         app.get('/api/almanac', (req, res) => {

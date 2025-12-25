@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import IndexPage from '../components/IndexPage.vue' // 这个现在是新的首页（原 WelcomePage）
-import LoginPage from '../components/LoginPage.vue' // 这个是新的登录页（原 IndexPage）
+// import LoginPage from '../components/LoginPage.vue' // 这个是新的登录页（原 IndexPage）
 
 const routes = [
   {
@@ -73,11 +73,6 @@ const routes = [
       }
     ]
   },
-  {
-    path: '/login',
-    name: 'login',
-    component: LoginPage
-  }
 ]
 
 const router = createRouter({
@@ -85,17 +80,17 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to, from, next) => {
-  const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
-  const isAuthenticated = localStorage.getItem('token'); // 假设登录状态存储在 localStorage 中
+// router.beforeEach((to, from, next) => {
+//   const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
+//   const isAuthenticated = localStorage.getItem('token'); // 假设登录状态存储在 localStorage 中
 
-  if (requiresAuth && !isAuthenticated) {
-    // 如果路由需要认证但用户未登录，则重定向到登录页
-    next('/login');
-  } else {
-    // 否则，正常放行
-    next();
-  }
-});
+//   if (requiresAuth && !isAuthenticated) {
+//     // 如果路由需要认证但用户未登录，则重定向到登录页
+//     next('/login');
+//   } else {
+//     // 否则，正常放行
+//     next();
+//   }
+// });
 
 export default router

@@ -11,7 +11,7 @@
           <span v-if="!formattedExpiryDate" class="sub-text">Welcome back!</span>
           <span v-else class="expiry-date">
             <svg class="vip-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
-            <!-- 会员到期:  --> {{ formattedExpiryDate }}
+            {{ formattedExpiryDate }}
           </span>
         </div>
 
@@ -30,7 +30,7 @@
         <a href="#" @click.prevent="navigateTo('home')" :class="{ active: activeMenu === 'home' }">
           <span class="icon">🏠</span> 首    页
         </a>
-        <a href="#" @click.prevent="navigateTo('my')" :class="{ active: activeMenu === 'my' }">
+        <a v-if="isLoggedIn" href="#" @click.prevent="navigateTo('my')" :class="{ active: activeMenu === 'my' }">
           <span class="icon">👤</span> 我的课程
         </a>
         <a href="#" @click.prevent="navigateTo('book')" :class="{ active: activeMenu === 'book' }" ref="bookButton">
@@ -45,22 +45,15 @@
         <a href="#" @click.prevent="navigateTo('BubbleGame')" :class="{ active: activeMenu === 'BubbleGame' }">
          <span class="icon">🎮</span> 气泡作战
        </a>
-        <a href="#" @click.prevent="navigateTo('reward')" :class="{ active: activeMenu === 'reward' }">
+        <a v-if="isSubscribed" href="#" @click.prevent="navigateTo('reward')" :class="{ active: activeMenu === 'reward' }">
           <span class="icon">💰</span> 邀请奖励
         </a>
-        <!-- <a href="#" @click.prevent="navigateTo('messages')" :class="{ active: activeMenu === 'messages' }">
-          <span class="icon">✉️</span> 留言提案
-        </a> -->
-        
-
-        <!-- <a href="#" @click.prevent="navigateTo('race')" :class="{ active: activeMenu === 'race' }">
-          <span class="icon">✉️</span> race
-        </a> -->
-
+        <a href="#" @click.prevent="goToInternationalSite">
+          <span class="icon">🌍</span> 国际站
+        </a>
       </nav>
 
       <div class="sidebar-footer">
-        <!-- 替换为 Canvas 小猫动画 -->
         <div class="mascot-container">
           <canvas id="catCanvas"></canvas>
         </div>
@@ -71,15 +64,18 @@
     <div class="content-area" id="content-area">
       <div class="content-header" :style="{ background: headerBgColor }">
         <div class="header-actions">
+          <div class="customer-service-container" @mouseover="showQRCode = true" @mouseout="showQRCode = false">
+            <button class="theme-toggle-btn">
+              <span class="icon">📧</span>
+            </button>
+            <div v-show="showQRCode" class="qr-code-popup">
+              <img src="/images/xue_kefu_qr.jpg" alt="客服二维码">
+              <p>微信扫码联系客服</p>
+            </div>
+          </div>
           <button @click="userStore.toggleTheme" class="theme-toggle-btn">
             <span v-if="userStore.theme === 'light'">🌙</span>
             <span v-else>☀️</span>
-          </button>
-          <button v-if="!userStore.user.nickname" @click="redirectToLogin" class="auth-button">
-            登录
-          </button>
-          <button v-else @click="handleLogout" class="auth-button">
-            退出
           </button>
         </div>
       </div>
@@ -88,17 +84,18 @@
       </div>
     </div>
 
-    <!-- 登录提示模态框 -->
-    <div v-if="showLoginModal" class="modal-overlay" @click="closeLoginModal">
+    <!-- 跳转国际站登录提示模态框 -->
+    <div v-if="showRedirectLoginModal" class="modal-overlay" @click="closeRedirectLoginModal">
       <div class="modal-content" @click.stop>
-        <h3>请登录</h3>
-        <p>您需要登录后才能访问“我的课程”。</p>
+        <h3>需要登录</h3>
+        <p>需要前往国际站xuebubu.org登录后才能使用</p>
         <div class="modal-actions">
-          <button @click="closeLoginModal" class="btn-secondary">稍后</button>
-          <button @click="redirectToLogin" class="btn-primary">去登录</button>
+          <button @click="closeRedirectLoginModal" class="btn-secondary">取消</button>
+          <button @click="redirectToInternationalLogin(true)" class="btn-primary">前往登录</button>
         </div>
       </div>
     </div>
+
   </div>
 </template>
 
@@ -113,10 +110,11 @@ const toast = useToast();
 const bookButton = ref(null);
 
 const activeMenu = ref('home');
-const showLoginModal = ref(false); // 控制模态框显示
+const showRedirectLoginModal = ref(false);
+const isLoggedIn = computed(() => !!localStorage.getItem('token'));
+const showQRCode = ref(false); // 控制二维码显示
 
-// For dynamic header background color
-const headerBgColor = ref('transparent'); // Default color
+const headerBgColor = ref('transparent');
 const setHeaderBgColor = (color) => {
   headerBgColor.value = color;
 };
@@ -124,16 +122,10 @@ provide('setHeaderBgColor', setHeaderBgColor);
 
 const avatarUrl = computed(() => {
   const avatar = userStore.user.avatar;
-  if (!avatar) {
-    return '/images/bubu.png'; // 默认头像
-  }
-  if (avatar.startsWith('http')) {
-    return avatar; // 微信头像，直接使用
-  }
-  if (avatar.includes('penguins')) {
-    return `/images/${avatar}`;
-  }
-  return `/images/${avatar}`; // 自选头像，拼接路径
+  if (!avatar) return '/images/bubu.png';
+  if (avatar.startsWith('http')) return avatar;
+  if (avatar.includes('penguins')) return `/images/${avatar}`;
+  return `/images/${avatar}`;
 });
 
 const formattedExpiryDate = computed(() => {
@@ -144,82 +136,49 @@ const formattedExpiryDate = computed(() => {
   return date.toLocaleDateString();
 });
 
+const isSubscribed = computed(() => {
+  const expiry = userStore.user.subscriptionExpiry;
+  if (!expiry) return false;
+  return new Date(expiry) > new Date();
+});
+
 function navigateTo(page) {
-  const token = localStorage.getItem('token');
-  if (page === 'my' && !token) {
-    showLoginModal.value = true; // 替换 alert
-    return;
-  }
   activeMenu.value = page;
   router.push({ name: page });
-}
-
-function closeLoginModal() {
-  showLoginModal.value = false;
-}
-
-function redirectToLogin() {
-  showLoginModal.value = false;
-  router.push({ name: 'login' });
-}
-
-function handleLogout() {
-  localStorage.removeItem('token');
-  userStore.setUser({}); // 清空用户信息
-  router.push({ name: 'login' });
 }
 
 function handleProgrammingClick() {
   toast.info('“编程课程” 正在火速开发中，敬请期待！');
 }
 
-// --- 小猫 Canvas 动画逻辑开始 ---
-
 function initCatAnimation() {
     const canvas = document.getElementById('catCanvas');
-    if (!canvas) {
-        // 如果元素尚未渲染，则退出
-        return;
-    }
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
-
     let width, height;
     let lastTime = 0;
-    
-    // 眨眼状态和计时器
     let blinkTimer = 0;
     let isBlinking = false;
-    const BLINK_INTERVAL = 2000; // 2秒眨一次眼
-    const BLINK_DURATION = 150;  // 眨眼持续时间
-
-    // 喵喵叫状态和计时器 (替换微笑逻辑)
+    const BLINK_INTERVAL = 2000;
+    const BLINK_DURATION = 150;
     let meowTimer = 0;
     let isMeowing = false;
-    const MEOW_INTERVAL = 2000; // 2秒喵一次
-    const MEOW_DURATION = 400; // 喵叫持续 0.4 秒
+    const MEOW_INTERVAL = 2000;
+    const MEOW_DURATION = 400;
+    const SIZE_MULTIPLIER = 2 / 3;
+    const CAT_COLOR = '#fcf0e2';
+    const CAT_SHADOW_COLOR = '#D4C4B5';
+    const HAT_COLOR = '#ff8a65';
+    const HAT_BORDER_COLOR = '#currentColor';
+    const MOUTH_NOSE_COLOR = '#FF8A80';
+    const BASE_DRAWING_WIDTH = 250;
+    const ORIGINAL_CAT_TOP_Y = -145;
+    const ORIGINAL_CAT_BOTTOM_Y = 160;
+    const ORIGINAL_CAT_HEIGHT = ORIGINAL_CAT_BOTTOM_Y - ORIGINAL_CAT_TOP_Y;
+    const ORIGINAL_CENTER_OF_CAT_Y = (ORIGINAL_CAT_TOP_Y + ORIGINAL_CAT_BOTTOM_Y) / 2;
+    const TARGET_CANVAS_WIDTH = 160;
+    const TOP_BOTTOM_PADDING = 5;
 
-    // 关键：缩小到原来的 2/3
-    const SIZE_MULTIPLIER = 2 / 3; 
-
-    // 小猫的颜色配置
-    const CAT_COLOR = '#fcf0e2';       // 浅米白 / 奶油色
-    const CAT_SHADOW_COLOR = '#D4C4B5'; // 稍微深一点的米灰色作为阴影/轮廓
-    const HAT_COLOR = '#ff8a65';       // 亮红色
-    const HAT_BORDER_COLOR = '#currentColor'; // 稍浅一点的红色用于帽檐
-    const MOUTH_NOSE_COLOR = '#FF8A80'; // 粉色鼻子
-
-    // 绘制基准（未缩放时的坐标）
-    const BASE_DRAWING_WIDTH = 250; 
-    const ORIGINAL_CAT_TOP_Y = -145;  
-    const ORIGINAL_CAT_BOTTOM_Y = 160; 
-    const ORIGINAL_CAT_HEIGHT = ORIGINAL_CAT_BOTTOM_Y - ORIGINAL_CAT_TOP_Y; 
-    const ORIGINAL_CENTER_OF_CAT_Y = (ORIGINAL_CAT_TOP_Y + ORIGINAL_CAT_BOTTOM_Y) / 2; 
-
-    // 关键：匹配 .mascot-container 的 CSS 宽度 160px
-    const TARGET_CANVAS_WIDTH = 160; 
-    const TOP_BOTTOM_PADDING = 5; 
-
-    // 辅助函数：绘制圆角矩形
     function drawRoundRect(x, y, w, h, radius, color) {
         ctx.beginPath();
         ctx.moveTo(x + radius, y);
@@ -236,41 +195,28 @@ function initCatAnimation() {
         ctx.fill();
     }
 
-    // 辅助函数：绘制椭圆
     function drawEllipse(x, y, radiusX, radiusY, rotation, color) {
         ctx.beginPath();
         ctx.ellipse(x, y, radiusX, radiusY, rotation, 0, 2 * Math.PI);
         ctx.fillStyle = color;
         ctx.fill();
     }
-    
-    // 主绘制函数（前置声明）
+
     function draw(timestamp) {
-        // 1. 清空画布
         ctx.clearRect(0, 0, width, height);
-
         const centerX = width / 2;
-        
-        // 计算缩放比例
         const fullScale = width / BASE_DRAWING_WIDTH;
-        const effectiveScale = fullScale * SIZE_MULTIPLIER; // 应用 2/3 缩小
-
-        // 垂直居中计算
+        const effectiveScale = fullScale * SIZE_MULTIPLIER;
         const canvasCenterY = height / 2;
         const catCenterYOffset = ORIGINAL_CENTER_OF_CAT_Y * effectiveScale;
-        const centerY = canvasCenterY - catCenterYOffset; 
-        
+        const centerY = canvasCenterY - catCenterYOffset;
         ctx.save();
         ctx.translate(centerX, centerY);
-        ctx.scale(effectiveScale, effectiveScale); // 使用缩小后的有效比例
-
-        // --- 绘制开始 (坐标系以 0,0 为中心) ---
-
-        // 2. 绘制尾巴
+        ctx.scale(effectiveScale, effectiveScale);
         ctx.beginPath();
-        ctx.moveTo(80, 100); 
-        ctx.bezierCurveTo(130, 80, 150, 20, 120, 0); 
-        ctx.bezierCurveTo(100, -20, 90, 40, 90, 100); 
+        ctx.moveTo(80, 100);
+        ctx.bezierCurveTo(130, 80, 150, 20, 120, 0);
+        ctx.bezierCurveTo(100, -20, 90, 40, 90, 100);
         ctx.closePath();
         ctx.fillStyle = CAT_COLOR;
         ctx.fill();
@@ -278,62 +224,46 @@ function initCatAnimation() {
         ctx.lineWidth = 4;
         ctx.lineJoin = 'round';
         ctx.stroke();
-
-        // 3. 绘制身体
         ctx.fillStyle = CAT_COLOR;
         ctx.strokeStyle = CAT_SHADOW_COLOR;
         ctx.lineWidth = 3;
-
         ctx.beginPath();
         ctx.moveTo(-60, -20);
-        ctx.bezierCurveTo(-110, 80, -110, 150, -70, 160); 
-        ctx.lineTo(70, 160); 
-        ctx.bezierCurveTo(110, 150, 110, 80, 60, -20); 
+        ctx.bezierCurveTo(-110, 80, -110, 150, -70, 160);
+        ctx.lineTo(70, 160);
+        ctx.bezierCurveTo(110, 150, 110, 80, 60, -20);
         ctx.closePath();
         ctx.fill();
-        ctx.stroke(); 
-
-        // 4. 绘制前腿/爪子
-        ctx.fillStyle = CAT_SHADOW_COLOR; 
-        drawEllipse(-25, 155, 20, 25, 0, CAT_SHADOW_COLOR); 
-        drawEllipse(25, 155, 20, 25, 0, CAT_SHADOW_COLOR); 
-
-        ctx.fillStyle = CAT_COLOR; 
-        drawEllipse(-25, 145, 18, 20, 0, CAT_COLOR); 
-        drawEllipse(25, 145, 18, 20, 0, CAT_COLOR);  
-
-        // 增加一点脚趾的线条
+        ctx.stroke();
+        ctx.fillStyle = CAT_SHADOW_COLOR;
+        drawEllipse(-25, 155, 20, 25, 0, CAT_SHADOW_COLOR);
+        drawEllipse(25, 155, 20, 25, 0, CAT_SHADOW_COLOR);
+        ctx.fillStyle = CAT_COLOR;
+        drawEllipse(-25, 145, 18, 20, 0, CAT_COLOR);
+        drawEllipse(25, 145, 18, 20, 0, CAT_COLOR);
         ctx.strokeStyle = CAT_SHADOW_COLOR;
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(-35, 145); ctx.lineTo(-15, 145); 
-        ctx.moveTo(15, 145); ctx.lineTo(35, 145); 
+        ctx.moveTo(-35, 145);
+        ctx.lineTo(-15, 145);
+        ctx.moveTo(15, 145);
+        ctx.lineTo(35, 145);
         ctx.stroke();
-
-        // 5. 绘制前爪在肚子上的轮廓
         ctx.strokeStyle = CAT_SHADOW_COLOR;
         ctx.lineWidth = 1.5;
-        // 左爪的轮廓线
         ctx.beginPath();
         ctx.moveTo(-35, 100);
         ctx.quadraticCurveTo(-20, 120, -10, 140);
         ctx.stroke();
-        // 右爪的轮廓线
         ctx.beginPath();
         ctx.moveTo(35, 100);
         ctx.quadraticCurveTo(20, 120, 10, 140);
         ctx.stroke();
-
-
-        // 6. 绘制头部
         ctx.fillStyle = CAT_COLOR;
         ctx.strokeStyle = CAT_SHADOW_COLOR;
         ctx.lineWidth = 3;
         drawEllipse(0, -50, 85, 75, 0, CAT_COLOR);
         ctx.stroke();
-
-        // 7. 绘制耳朵
-        // 左耳
         ctx.beginPath();
         ctx.moveTo(-60, -90);
         ctx.lineTo(-80, -130);
@@ -344,16 +274,13 @@ function initCatAnimation() {
         ctx.strokeStyle = CAT_SHADOW_COLOR;
         ctx.lineWidth = 2;
         ctx.stroke();
-        // 左耳内侧
         ctx.beginPath();
         ctx.moveTo(-60, -95);
         ctx.lineTo(-72, -120);
         ctx.lineTo(-40, -108);
         ctx.closePath();
-        ctx.fillStyle = MOUTH_NOSE_COLOR; 
+        ctx.fillStyle = MOUTH_NOSE_COLOR;
         ctx.fill();
-
-        // 右耳
         ctx.beginPath();
         ctx.moveTo(60, -90);
         ctx.lineTo(80, -130);
@@ -364,31 +291,24 @@ function initCatAnimation() {
         ctx.strokeStyle = CAT_SHADOW_COLOR;
         ctx.lineWidth = 2;
         ctx.stroke();
-        // 右耳内侧
         ctx.beginPath();
         ctx.moveTo(60, -95);
         ctx.lineTo(72, -120);
         ctx.lineTo(40, -108);
         ctx.closePath();
-        ctx.fillStyle = MOUTH_NOSE_COLOR; 
+        ctx.fillStyle = MOUTH_NOSE_COLOR;
         ctx.fill();
-
-        // 8. 绘制帽子 (在头部之上)
         ctx.fillStyle = HAT_COLOR;
-        ctx.strokeStyle = HAT_COLOR; 
+        ctx.strokeStyle = HAT_COLOR;
         ctx.lineWidth = 2;
-        
-        // 帽子主体 (半圆)
         ctx.beginPath();
-        ctx.arc(0, -100, 45, Math.PI, 0); 
-        ctx.closePath(); 
+        ctx.arc(0, -100, 45, Math.PI, 0);
+        ctx.closePath();
         ctx.fill();
-        ctx.stroke(); 
-        
-        // 帽子卷边 (圆角矩形)
+        ctx.stroke();
         drawRoundRect(-50, -105, 100, 25, 10, HAT_BORDER_COLOR);
         ctx.strokeStyle = HAT_BORDER_COLOR;
-        ctx.beginPath(); 
+        ctx.beginPath();
         ctx.moveTo(-50 + 10, -105);
         ctx.lineTo(-50 + 100 - 10, -105);
         ctx.quadraticCurveTo(-50 + 100, -105, -50 + 100, -105 + 10);
@@ -399,55 +319,37 @@ function initCatAnimation() {
         ctx.lineTo(-50, -105 + 10);
         ctx.quadraticCurveTo(-50, -105, -50 + 10, -105);
         ctx.stroke();
-
-
-        // 帽子顶部的球
         ctx.beginPath();
         ctx.arc(0, -145, 12, 0, Math.PI * 2);
         ctx.fillStyle = HAT_BORDER_COLOR;
         ctx.fill();
         ctx.stroke();
-
-
-        // 9. 绘制五官
-        
-        // 眼睛
         const eyeY = -50;
         const eyeXOffset = 35;
         const eyeSize = 8;
-
         ctx.fillStyle = '#111';
         ctx.strokeStyle = '#111';
         ctx.lineWidth = 3;
-
         if (isBlinking) {
-            // 闭眼
-            // 左眼
             ctx.beginPath();
             ctx.moveTo(-eyeXOffset - 10, eyeY);
             ctx.quadraticCurveTo(-eyeXOffset, eyeY + 5, -eyeXOffset + 10, eyeY);
             ctx.stroke();
-            // 右眼
             ctx.beginPath();
             ctx.moveTo(eyeXOffset - 10, eyeY);
             ctx.quadraticCurveTo(eyeXOffset, eyeY + 5, eyeXOffset + 10, eyeY);
             ctx.stroke();
         } else {
-            // 睁眼
             ctx.beginPath();
-            ctx.arc(-eyeXOffset, eyeY, eyeSize, 0, Math.PI * 2); // 左
-            ctx.arc(eyeXOffset, eyeY, eyeSize, 0, Math.PI * 2);  // 右
+            ctx.arc(-eyeXOffset, eyeY, eyeSize, 0, Math.PI * 2);
+            ctx.arc(eyeXOffset, eyeY, eyeSize, 0, Math.PI * 2);
             ctx.fill();
-            
-            // 眼神高光 (可选)
             ctx.fillStyle = '#FFF';
             ctx.beginPath();
             ctx.arc(-eyeXOffset - 2, eyeY - 2, 2, 0, Math.PI * 2);
             ctx.arc(eyeXOffset - 2, eyeY - 2, 2, 0, Math.PI * 2);
             ctx.fill();
         }
-
-        // 鼻子
         ctx.fillStyle = MOUTH_NOSE_COLOR;
         ctx.beginPath();
         ctx.moveTo(-5, -35);
@@ -455,145 +357,140 @@ function initCatAnimation() {
         ctx.lineTo(0, -28);
         ctx.closePath();
         ctx.fill();
-
-        // 嘴巴 (喵喵叫或闭嘴)
         ctx.lineWidth = 2;
         ctx.strokeStyle = '#111';
-        
         if (isMeowing) {
-            // 张嘴 (模拟喵喵叫)
-            const MOUTH_OPEN_COLOR = '#333'; // 深色表示口腔内部
-            const TONGUE_COLOR = '#FF99AA'; // 浅粉色舌头
-
-            // 1. 画开口 (椭圆)
+            const MOUTH_OPEN_COLOR = '#333';
+            const TONGUE_COLOR = '#FF99AA';
             ctx.beginPath();
-            // 在鼻子下方
-            ctx.ellipse(0, -15, 12, 8, 0, 0, 2 * Math.PI); 
+            ctx.ellipse(0, -15, 12, 8, 0, 0, 2 * Math.PI);
             ctx.fillStyle = MOUTH_OPEN_COLOR;
             ctx.fill();
-            
-            // 2. 画舌头
-            drawEllipse(0, -13, 8, 4, 0, TONGUE_COLOR); 
-            
-            // 3. 绘制嘴唇轮廓，从鼻子尖向下延伸
+            drawEllipse(0, -13, 8, 4, 0, TONGUE_COLOR);
             ctx.strokeStyle = '#111';
             ctx.beginPath();
             ctx.moveTo(0, -28);
-            ctx.lineTo(-10, -20); // 左侧唇线
+            ctx.lineTo(-10, -20);
             ctx.moveTo(0, -28);
-            ctx.lineTo(10, -20); // 右侧唇线
+            ctx.lineTo(10, -20);
             ctx.stroke();
-
         } else {
-            // 默认闭嘴 (W形)
-            const controlY = -20; 
+            const controlY = -20;
             ctx.beginPath();
             ctx.moveTo(0, -28);
-            ctx.quadraticCurveTo(-5, controlY, -10, -25); // 左半边
+            ctx.quadraticCurveTo(-5, controlY, -10, -25);
             ctx.stroke();
             ctx.beginPath();
             ctx.moveTo(0, -28);
-            ctx.quadraticCurveTo(5, controlY, 10, -25); // 右半边
+            ctx.quadraticCurveTo(5, controlY, 10, -25);
             ctx.stroke();
         }
-
-        // 胡须
         ctx.lineWidth = 1.5;
         ctx.strokeStyle = '#333';
-        // 左胡须
         ctx.beginPath(); ctx.moveTo(-60, -40); ctx.lineTo(-90, -45); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(-60, -32); ctx.lineTo(-95, -32); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(-60, -24); ctx.lineTo(-90, -20); ctx.stroke();
-        // 右胡须
         ctx.beginPath(); ctx.moveTo(60, -40); ctx.lineTo(90, -45); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(60, -32); ctx.lineTo(95, -32); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(60, -24); ctx.lineTo(90, -20); ctx.stroke();
-
-        ctx.restore(); 
+        ctx.restore();
     }
 
-    // 初始化画布尺寸
     function resize() {
         width = TARGET_CANVAS_WIDTH;
-        
-        // 1. 计算用于绘制的有效缩放比例
         const fullScale = width / BASE_DRAWING_WIDTH;
-        const effectiveScale = fullScale * SIZE_MULTIPLIER; // 应用 2/3 缩小
-        
-        // 2. 根据有效比例计算所需高度 (猫咪实际高度 + 顶部/底部留白)
+        const effectiveScale = fullScale * SIZE_MULTIPLIER;
         const requiredCatHeight = ORIGINAL_CAT_HEIGHT * effectiveScale;
         height = requiredCatHeight + (TOP_BOTTOM_PADDING * 2);
-
         canvas.width = width;
         canvas.height = height;
-
-        draw(0); // 重绘
+        draw(0);
     }
 
-    // 动画循环
     function animate(timestamp) {
         if (!lastTime) lastTime = timestamp;
         const deltaTime = timestamp - lastTime;
         lastTime = timestamp;
-
-        // --- 更新眨眼逻辑 (2秒间隔) ---
         blinkTimer += deltaTime;
         if (blinkTimer > BLINK_INTERVAL) {
             isBlinking = true;
             if (blinkTimer > BLINK_INTERVAL + BLINK_DURATION) {
                 isBlinking = false;
-                blinkTimer = 0; // 重置计时器
+                blinkTimer = 0;
             }
         }
-
-        // --- 更新喵喵叫逻辑 (2秒间隔) ---
         meowTimer += deltaTime;
         if (meowTimer > MEOW_INTERVAL) {
             isMeowing = true;
             if (meowTimer > MEOW_INTERVAL + MEOW_DURATION) {
                 isMeowing = false;
-                meowTimer = 0; // 重置计时器
+                meowTimer = 0;
             }
         }
-
         draw(timestamp);
         requestAnimationFrame(animate);
     }
-    
-    // 启动动画
-    resize(); 
+    resize();
     requestAnimationFrame(animate);
 }
 
-// 在组件挂载后初始化动画
 onMounted(() => {
   navigateTo('home');
-  initCatAnimation(); // 启动小猫 Canvas 动画
+  initCatAnimation();
 });
 
-// === 新增：处理头像点击状态 ===
 const isUserLoading = ref(false);
 
 const handleUserClick = async () => {
-  if (isUserLoading.value) return; // 防止重复点击
-  
+  if (!isLoggedIn.value) {
+    showRedirectLoginModal.value = true;
+    return;
+  }
+  if (isUserLoading.value) return;
   isUserLoading.value = true;
-  
-  // 为了让加载动画展示出来（即使用户电脑很快，也展示一瞬间，体验更平滑）
-  // 或者如果 navigateTo 是异步的，可以直接 await
   try {
-    // 稍微延迟一下 navigateTo 的调用或者等待它完成
-    await navigateTo('setting'); 
-    
-    // 注意：如果是跳转到新路由，组件可能会销毁，下面的代码可能不执行，这没关系。
-    // 如果是同页面的组件切换，可以在这里重置状态。
-    setTimeout(() => {
-      isUserLoading.value = false;
-    }, 500); 
+    await navigateTo('setting');
+    setTimeout(() => { isUserLoading.value = false; }, 500);
   } catch (e) {
     isUserLoading.value = false;
   }
 };
+
+function closeRedirectLoginModal() {
+  showRedirectLoginModal.value = false;
+}
+
+function redirectToInternationalLogin(inNewWindow = false) {
+  closeRedirectLoginModal();
+  const url = 'https://xuebubu.org/login';
+  if (inNewWindow) {
+    window.open(url, '_blank');
+  } else {
+    window.location.href = url;
+  }
+}
+
+async function goToInternationalSite() {
+  if (isLoggedIn.value) {
+    const token = localStorage.getItem('token');
+    try {
+      const response = await fetch('/api/sso/generate', {
+        method: 'POST',
+        headers: { 'Authorization': token }
+      });
+      if (!response.ok) throw new Error('Failed to generate SSO code');
+      const data = await response.json();
+      const ssoCode = data.sso_code;
+      const internationalUrl = `https://xuebubu.org/login?sso_code=${ssoCode}`;
+      window.open(internationalUrl, '_blank');
+    } catch (error) {
+      console.error('无法跳转到国际站:', error);
+      toast.error('跳转失败，请稍后重试');
+    }
+  } else {
+    redirectToInternationalLogin(true);
+  }
+}
 </script>
 
 <style scoped>
@@ -621,8 +518,8 @@ const handleUserClick = async () => {
   display: flex;
   flex-direction: column;
   flex-grow: 1;
-  position: relative; /* 确保子元素的 `position: absolute` 是相对于此容器 */
-  overflow: hidden; /* 防止内容溢出 */
+  position: relative;
+  overflow: hidden;
 }
 
 .content-header {
@@ -630,11 +527,10 @@ const handleUserClick = async () => {
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  /* background-color is now controlled by headerBgColor */
-  border-bottom: 1px solid var(--border-color, var(--border-color-light)); /* Optional border */
-  flex-shrink: 0; /* 防止 header 收缩 */
+  border-bottom: 1px solid var(--border-color, var(--border-color-light));
+  flex-shrink: 0;
   z-index: 10;
-  transition: background 0.3s ease, border-color 0.3s ease; /* Add transition for smooth color change */
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 
 .router-view-wrapper {
@@ -663,7 +559,7 @@ const handleUserClick = async () => {
 }
 
 .auth-button:hover {
-  background-color: #ff7043; /* A slightly darker shade of primary-color */
+  background-color: #ff7043;
   color: white;
 }
 .dark .auth-button:hover {
@@ -701,5 +597,35 @@ const handleUserClick = async () => {
 
 .dark .theme-toggle-btn:hover {
   background-color: rgba(255,255,255,0.1);
+}
+
+.customer-service-container {
+  position: relative;
+}
+
+.qr-code-popup {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 10px;
+  padding: 1rem;
+  background-color: var(--card-bg, #fff);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 100;
+  text-align: center;
+  width: 180px;
+}
+
+.qr-code-popup img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.qr-code-popup p {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-subtle);
 }
 </style>
