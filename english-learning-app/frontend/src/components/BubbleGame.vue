@@ -224,7 +224,7 @@ function speakWord(text) {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'en-US';
-    utterance.rate = 1.2;
+    utterance.rate = 0.9;
     utterance.pitch = 1.1;
     utterance.volume = 1.0;
     window.speechSynthesis.speak(utterance);
