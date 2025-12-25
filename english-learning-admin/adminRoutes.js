@@ -153,13 +153,13 @@ router.get('/cos/get-presigned-url', async (req, res) => {
         Expires: 600, // 签名有效期 10 分钟
     };
 
-    cos.getSignedUrl(params, (err, data) => {
+    cos.getPresignedUrl(params, (err, data) => {
         if (err) {
             console.error('Error getting presigned URL from COS', err);
             return res.status(500).json({ message: 'Failed to get upload URL.' });
         }
         res.status(200).json({
-            uploadUrl: data.SignedUrl,
+            uploadUrl: data.PresignedUrl,
             accessUrl: `https://${cosConfig.Bucket}.cos.${cosConfig.Region}.myqcloud.com/${key}`
         });
     });
