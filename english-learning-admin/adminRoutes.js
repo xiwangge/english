@@ -151,56 +151,45 @@ router.get('/cos/get-presigned-url', async (req, res) => {
         Key: key,
         Method: 'PUT',
         Expires: 600, // 签名有效期 10 分钟
+        Sign: true, // 必须设置为 true 来获取预签名 URL
+        Headers: {
+            'Content-Type': 'image/png' // Or the specific type, but this is a common case
+        }
     };
 
-    cos.getPresignedUrl(params, (err, data) => {
+    cos.getObjectUrl(params, (err, data) => {
         if (err) {
             console.error('Error getting presigned URL from COS', err);
             return res.status(500).json({ message: 'Failed to get upload URL.' });
         }
+        const accessUrl = process.env.COS_CUSTOM_DOMAIN
+            ? `${process.env.COS_CUSTOM_DOMAIN}/${key}`
+            : `https://${cosConfig.Bucket}.cos.${cosConfig.Region}.myqcloud.com/${key}`;
+
         res.status(200).json({
-            uploadUrl: data.PresignedUrl,
-            accessUrl: `https://${cosConfig.Bucket}.cos.${cosConfig.Region}.myqcloud.com/${key}`
+            uploadUrl: data.Url, // 正确的返回字段是 Url
+            accessUrl: accessUrl
         });
     });
 });
 
 
 // 创建/更新书籍 (已改造)
-router.post('/book/create', upload.single('cover'), async (req, res) => {
+// 创建/更新书籍 (已改造，移除后端上传逻辑)
+router.post('/book/create', upload.none(), async (req, res) => { // 使用 upload.none() 因为不再处理文件
     try {
         const { bookName, edition, publisher, description, isFree, isOnShelf, studyTime, credits, coverImageUrl } = req.body;
-        const coverFile = req.file;
-        let coverImage = coverImageUrl; // 优先使用传入的 URL
 
         if (!bookName || !edition || !publisher || !description) {
             return res.status(400).json({ message: '请填写所有书籍基本信息' });
         }
 
-        // 如果有文件上传，则处理文件并覆盖 URL
-        if (coverFile) {
-             const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-             const fileExtension = path.extname(coverFile.originalname);
-             const filename = `cover-${uniqueSuffix}${fileExtension}`;
-
-             await new Promise((resolve, reject) => {
-                 cos.putObject({
-                     Bucket: cosConfig.Bucket,
-                     Region: cosConfig.Region,
-                     Key: `images/${filename}`,
-                     Body: coverFile.buffer,
-                 }, (err, data) => {
-                     if (err) return reject(err);
-                     resolve(data);
-                 });
-             });
-             coverImage = `https://${cosConfig.Bucket}.cos.${cosConfig.Region}.myqcloud.com/images/${filename}`;
-        }
-
-        if (!coverImage) {
-            return res.status(400).json({ message: '请上传封面或提供封面URL' });
+        if (!coverImageUrl) {
+            return res.status(400).json({ message: '缺少封面图片 URL' });
         }
         
+        const coverImage = coverImageUrl; // 直接使用前端提供的 URL
+
         // 查找是否已存在同名书籍
         let book = await Book.findOne({ bookName: bookName });
 
@@ -247,14 +236,27 @@ router.post('/book/create', upload.single('cover'), async (req, res) => {
         res.status(500).json({ message: '服务器创建/更新书籍失败' });
     }
 });
+
+const replaceCosDomain = (books) => {
+    const customDomain = process.env.COS_CUSTOM_DOMAIN;
+    if (!customDomain || !process.env.COS_BUCKET || !process.env.COS_REGION) return books;
+
+    const defaultCosDomain = `https://${process.env.COS_BUCKET}.cos.${process.env.COS_REGION}.myqcloud.com`;
+
+    return books.map(book => {
+        const bookObj = book.toObject(); // Convert Mongoose document to plain object
+        if (bookObj.coverImage && bookObj.coverImage.startsWith(defaultCosDomain)) {
+            bookObj.coverImage = bookObj.coverImage.replace(defaultCosDomain, customDomain);
+        }
+        return bookObj;
+    });
+};
+
 // 获取所有书籍 包含下架的
 router.get('/book/list', async (req, res) => {
     try {
         const books = await Book.find();
-        if(books) {
-          res.status(200).json(books);
-        }
-        
+        res.status(200).json(replaceCosDomain(books));
     } catch (error) {
         console.error('获取所有书籍失败:', error);
         res.status(500).json({ message: '服务器获取所有书籍失败' });
@@ -271,7 +273,7 @@ router.get('/book/search', async (req, res) => {
         }
 
         const books = await Book.find(query);
-        res.status(200).json(books);
+        res.status(200).json(replaceCosDomain(books));
     } catch (error) {
         console.error('搜索书籍失败:', error);
         res.status(500).json({ message: '服务器搜索书籍失败' });

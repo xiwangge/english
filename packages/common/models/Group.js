@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const groupSchema = new mongoose.Schema({
   name: {
@@ -41,4 +41,4 @@ groupSchema.set('toObject', { virtuals: true });
 
 const Group = mongoose.model('Group', groupSchema);
 
-module.exports = Group;
+export default Group;

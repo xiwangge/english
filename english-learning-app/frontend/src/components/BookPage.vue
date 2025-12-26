@@ -60,10 +60,10 @@ onMounted(async () => {
   updateHeaderColor(); // 初始化 Header 颜色
 
   const token = localStorage.getItem('token');
-  if (!token) {
-    console.error('Token not found.');
-    return;
-  }
+  // if (!token) {
+  //   console.error('Token not found.');
+  //   return;
+  // }
 
   try {
     const [allBooksResponse, learningBookResponse] = await Promise.all([
