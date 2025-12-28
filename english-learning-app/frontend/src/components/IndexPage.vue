@@ -443,7 +443,7 @@ function initCatAnimation() {
 }
 
 onMounted(() => {
-  navigateTo('home');
+  // navigateTo('home'); // 移除强制重定向，由路由自行处理
   initCatAnimation();
 });
 

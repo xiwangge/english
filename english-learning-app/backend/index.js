@@ -40,14 +40,14 @@ const transporter = nodemailer.createTransport({
 });
 
 // --- Redis 连接 ---
-const redisClient = createClient({
-  // 默认连接 localhost:6379，如有需要请在此配置 url StrongPassWord123...
-  // redis://:你的密码@localhost:6379 'redis://user:password@host:port'
-  url: 'redis://:StrongPassWord123...@localhost:6379'
-});
-redisClient.on('error', (err) => console.log('Redis Client Error', err));
-await redisClient.connect();
-console.log('Redis connected');
+// const redisClient = createClient({
+//   // 默认连接 localhost:6379，如有需要请在此配置 url StrongPassWord123...
+//   // redis://:你的密码@localhost:6379 'redis://user:password@host:port'
+//   url: 'redis://:StrongPassWord123...@localhost:6379'
+// });
+// redisClient.on('error', (err) => console.log('Redis Client Error', err));
+// await redisClient.connect();
+// console.log('Redis connected');
 
 
 // --- ES Modules 路径处理 ---
@@ -122,18 +122,18 @@ async function checkSubscription(req, res, next) {
 
 // 静态文件服务：托管 public 目录下的文件
 app.use(express.static(path.join(__dirname, 'public'), {
-    setHeaders: (res, path) => {
-      if (path.endsWith('.css')) {
-        res.setHeader('Content-Type', 'text/css');
-      }
+  setHeaders: (res, path) => {
+    if (path.endsWith('.css')) {
+      res.setHeader('Content-Type', 'text/css');
     }
-  }));
+  }
+}));
 
 // 为上传的图片提供专门的静态资源服务
 app.use('/uploads', express.static(path.join(__dirname, 'public/images')));
 
 app.get('/dictation', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'dictation.html'));
+  res.sendFile(path.join(__dirname, 'public', 'dictation.html'));
 });
 
 
@@ -141,31 +141,31 @@ app.get('/dictation', (req, res) => {
 mongoose.connect(process.env.mongoURI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-  
+
   // 增加这些超时设置
   connectTimeoutMS: 10000,      // 连接超时 60秒
   socketTimeoutMS: 9000,       // Socket 超时 45秒
   serverSelectionTimeoutMS: 15000, // 服务器选择超时 60秒
-  
+
   // 连接池设置
   maxPoolSize: 200,              // 最大连接数
   minPoolSize: 20,               // 最小连接数
   maxIdleTimeMS: 60000,         // 空闲连接超时
-  
+
   // 重试设置
   retryWrites: true,
   retryReads: true,
-  
+
   // 副本集相关
   replicaSet: 'rsEnglish',
   readPreference: 'primary'
 })
-.then(() => console.log('MongoDB connected'))
-.catch(err => console.error('MongoDB connection error:', err));
+  .then(() => console.log('MongoDB connected'))
+  .catch(err => console.error('MongoDB connection error:', err));
 // --------------------
 
 // 创建 temp 目录
-if (!fs.existsSync(path.join(__dirname, 'temp'))){
+if (!fs.existsSync(path.join(__dirname, 'temp'))) {
   fs.mkdirSync(path.join(__dirname, 'temp'));
 }
 
@@ -174,61 +174,61 @@ if (!fs.existsSync(path.join(__dirname, 'temp'))){
 
 // 文本转语音 API 路由
 app.get('/api/tts', (req, res) => {
-    console.log('--- 路由 /api/tts 进入 ---')
-    // 1. 获取请求参数
-    const text = req.query.text;
-    const lang = req.query.lang || 'en';
-    
-    if (!text) {
-        return res.status(400).send({ error: 'Please provide text in the "text" query parameter.' });
-    }
+  console.log('--- 路由 /api/tts 进入 ---')
+  // 1. 获取请求参数
+  const text = req.query.text;
+  const lang = req.query.lang || 'en';
 
-    // 2. 实例化 gtts 并设置语言
-    const gtts = new gTTS(lang); // 确保这里使用的是小写的 gtts 变量
-
-    try {
-        // 3. 设置响应头：告知浏览器这是一个 MP3 音频流
-        res.set({
-            'Content-Type': 'audio/mpeg',
-            'Cache-Control': 'no-cache'
-        });
-
-        // 4. 生成音频流并管道传输到 Express 响应
-        gtts.stream(text).pipe(res);
-
-    } catch (error) {
-        // 此处的 try/catch 只能捕获同步错误，gTTS 的 ETIMEDOUT 是异步错误
-        console.error("gTTS 同步错误:", error);
-        res.status(500).send({ error: 'Failed to generate speech audio due to internal error.' });
-    }
-  });
-      
-    // **注意：由于 gtts.stream() 返回的 Stream 可能会异步抛出 ETIMEDOUT 错误**
-    // 建议在 Stream 上也监听 'error' 事件以防止进程崩溃（但 pipe(res) 已经将错误事件转发给了 res）
-
-  // 生成随机验证码
-  function generateVerificationCode() {
-    let code = '';
-    for (let i = 0; i < verificationCodeLength; i++) {
-      code += Math.floor(Math.random() * 10);
-    }
-    return code;
+  if (!text) {
+    return res.status(400).send({ error: 'Please provide text in the "text" query parameter.' });
   }
 
-  // 生成 32 进制邀请码
-  async function generateInvitationCode(userCount) {
-    let code = (userCount + 1).toString(32).toUpperCase();
-    const minLength = 4;
-    if (code.length < minLength) {
-      const charsNeeded = minLength - code.length;
-      // 生成随机字符并转换为 32 进制
-      const randomChars = crypto.randomBytes(Math.ceil(charsNeeded / 2)).toString('hex').toUpperCase();
-      code = randomChars.substring(0, charsNeeded) + 'I' + code;
-    } if(code.length == 4) {
-      code = 'I' + code ;
-    }
-    return code;
+  // 2. 实例化 gtts 并设置语言
+  const gtts = new gTTS(lang); // 确保这里使用的是小写的 gtts 变量
+
+  try {
+    // 3. 设置响应头：告知浏览器这是一个 MP3 音频流
+    res.set({
+      'Content-Type': 'audio/mpeg',
+      'Cache-Control': 'no-cache'
+    });
+
+    // 4. 生成音频流并管道传输到 Express 响应
+    gtts.stream(text).pipe(res);
+
+  } catch (error) {
+    // 此处的 try/catch 只能捕获同步错误，gTTS 的 ETIMEDOUT 是异步错误
+    console.error("gTTS 同步错误:", error);
+    res.status(500).send({ error: 'Failed to generate speech audio due to internal error.' });
   }
+});
+
+// **注意：由于 gtts.stream() 返回的 Stream 可能会异步抛出 ETIMEDOUT 错误**
+// 建议在 Stream 上也监听 'error' 事件以防止进程崩溃（但 pipe(res) 已经将错误事件转发给了 res）
+
+// 生成随机验证码
+function generateVerificationCode() {
+  let code = '';
+  for (let i = 0; i < verificationCodeLength; i++) {
+    code += Math.floor(Math.random() * 10);
+  }
+  return code;
+}
+
+// 生成 32 进制邀请码
+async function generateInvitationCode(userCount) {
+  let code = (userCount + 1).toString(32).toUpperCase();
+  const minLength = 4;
+  if (code.length < minLength) {
+    const charsNeeded = minLength - code.length;
+    // 生成随机字符并转换为 32 进制
+    const randomChars = crypto.randomBytes(Math.ceil(charsNeeded / 2)).toString('hex').toUpperCase();
+    code = randomChars.substring(0, charsNeeded) + 'I' + code;
+  } if (code.length == 4) {
+    code = 'I' + code;
+  }
+  return code;
+}
 
 // --- 微信扫码登录 (使用 Redis) ---
 
@@ -236,182 +236,182 @@ const WECHAT_SESSION_EXPIRY = 5 * 60; // 5 分钟过期 (单位：秒)
 
 // 1. 获取登录二维码
 // 1. 获取登录参数 (修改为返回配置而非图片)
-app.get('/api/wechat/qrcode', async (req, res) => {
-  const { invitationCode } = req.query;
-  const sceneId = uuidv4(); // 生成唯一场景 ID
-  const appid = process.env.APPID;
-  const redirect_uri = 'https://xuebubu.com/api/auth/callback'; // 注意：这里传原始地址，让前端传给 WxLogin，或者这里 encode 也可以
-  // 建议返回原始地址，WxLogin 内部或前端处理 encode，或者保持一致使用 encodeURIComponent 后的
-  const redirect_uri_encoded = encodeURIComponent(redirect_uri);
-  
-  try {
-    // 在 Redis 中创建登录会话 (保持不变)
-    const redisKey = `wechat:login:${sceneId}`;
-    await redisClient.set(redisKey, JSON.stringify({ 
-      status: 'pending',
-      invitationCode: invitationCode || null // 存进去
-    }), {
-      EX: 5 * 60 // 5分钟过期
-    });
+// app.get('/api/wechat/qrcode', async (req, res) => {
+//   const { invitationCode } = req.query;
+//   const sceneId = uuidv4(); // 生成唯一场景 ID
+//   const appid = process.env.APPID;
+//   const redirect_uri = 'https://xuebubu.com/api/auth/callback'; // 注意：这里传原始地址，让前端传给 WxLogin，或者这里 encode 也可以
+//   // 建议返回原始地址，WxLogin 内部或前端处理 encode，或者保持一致使用 encodeURIComponent 后的
+//   const redirect_uri_encoded = encodeURIComponent(redirect_uri);
 
-    // 移除 QRCode.toDataURL 相关代码
-    // 直接返回参数给前端
-    res.json({
-      appid: appid,
-      redirect_uri: redirect_uri_encoded,
-      scope: 'snsapi_login',
-      state: sceneId, // 这里的 sceneId 就是前端的 wechatId
-      wechatId: sceneId 
-    });
-  } catch (error) {
-    console.error('写入 Redis 失败:', error);
-    res.status(500).json({ message: '获取登录参数失败' });
-  }
-});
+//   try {
+//     // 在 Redis 中创建登录会话 (保持不变)
+//     const redisKey = `wechat:login:${sceneId}`;
+//     await redisClient.set(redisKey, JSON.stringify({ 
+//       status: 'pending',
+//       invitationCode: invitationCode || null // 存进去
+//     }), {
+//       EX: 5 * 60 // 5分钟过期
+//     });
+
+//     // 移除 QRCode.toDataURL 相关代码
+//     // 直接返回参数给前端
+//     res.json({
+//       appid: appid,
+//       redirect_uri: redirect_uri_encoded,
+//       scope: 'snsapi_login',
+//       state: sceneId, // 这里的 sceneId 就是前端的 wechatId
+//       wechatId: sceneId 
+//     });
+//   } catch (error) {
+//     console.error('写入 Redis 失败:', error);
+//     res.status(500).json({ message: '获取登录参数失败' });
+//   }
+// });
 
 // 2. 微信授权回调
-app.get('/api/auth/callback', async (req, res) => {
-  const { code, state: sceneId } = req.query;
+// app.get('/api/auth/callback', async (req, res) => {
+//   const { code, state: sceneId } = req.query;
 
-  if (!code || !sceneId) {
-    return res.status(400).send('缺少 code 或 state 参数');
-  }
-  const redisKey = `wechat:login:${sceneId}`;
+//   if (!code || !sceneId) {
+//     return res.status(400).send('缺少 code 或 state 参数');
+//   }
+//   const redisKey = `wechat:login:${sceneId}`;
 
-  try {
-    // 验证 state (sceneId) 的有效性
-    const sessionStr = await redisClient.get(redisKey);
-    
-    if (!sessionStr) {
-      return res.status(404).send('二维码已过期或无效，请刷新页面后重试。');
-    }
- 
-    // === 关键点：解析出之前存的邀请码 ===
-    const sessionData = JSON.parse(sessionStr);
-    const receivedInvitationCode = sessionData.invitationCode;
+//   try {
+//     // 验证 state (sceneId) 的有效性
+//     const sessionStr = await redisClient.get(redisKey);
 
-    // 1. 用 code 换取 access_token
-    const tokenUrl = 'https://api.weixin.qq.com/sns/oauth2/access_token';
-    const tokenParams = new URLSearchParams({
-      appid: process.env.APPID,
-      secret: process.env.APPSECRET,
-      code,
-      grant_type: 'authorization_code',
-    });
-    
-    // fetch 请求
-    const tokenRes = await fetch(`${tokenUrl}?${tokenParams}`);
-    const tokenData = await tokenRes.json();
-    const { access_token, openid } = tokenData;
+//     if (!sessionStr) {
+//       return res.status(404).send('二维码已过期或无效，请刷新页面后重试。');
+//     }
 
-    if (!openid) {
-      // throw new Error('微信返回的数据中缺少 openid');
-      // 将具体的错误信息抛出，方便调试
-        throw new Error(`❌ 微信接口错误: ${tokenData.errmsg || '未知错误'} (错误码: ${tokenData.errcode})`);
-    }
+//     // === 关键点：解析出之前存的邀请码 ===
+//     const sessionData = JSON.parse(sessionStr);
+//     const receivedInvitationCode = sessionData.invitationCode;
 
-    // 2. 获取用户信息
-    const userInfoUrl = 'https://api.weixin.qq.com/sns/userinfo';
-    const userInfoParams = new URLSearchParams({
-      access_token,
-      openid,
-      lang: 'zh_CN'
-    });
+//     // 1. 用 code 换取 access_token
+//     const tokenUrl = 'https://api.weixin.qq.com/sns/oauth2/access_token';
+//     const tokenParams = new URLSearchParams({
+//       appid: process.env.APPID,
+//       secret: process.env.APPSECRET,
+//       code,
+//       grant_type: 'authorization_code',
+//     });
 
-    // fetch 请求
-    const userInfoRes = await fetch(`${userInfoUrl}?${userInfoParams}`);
-    const userInfoData = await userInfoRes.json();
-    const { nickname, headimgurl, sex, city } = userInfoData;
+//     // fetch 请求
+//     const tokenRes = await fetch(`${tokenUrl}?${tokenParams}`);
+//     const tokenData = await tokenRes.json();
+//     const { access_token, openid } = tokenData;
 
-    // 1. 查找或创建用户 (数据库操作)
-    let user = await User.findOne({ wechatId: openid });
-    if (!user) {
-        const userCount = await User.countDocuments();
-        const invitationCode = await generateInvitationCode(userCount);
-        user = new User({
-          username: `wx_${openid.slice(-8)}`,
-          nickname: nickname,
-          avatar: headimgurl,
-          loginType: 'wechat',
-          wechatId: openid,
-          invitationCode: invitationCode,
-          sex: sex,
-          city: city,
-        });
-        await user.save();
+//     if (!openid) {
+//       // throw new Error('微信返回的数据中缺少 openid');
+//       // 将具体的错误信息抛出，方便调试
+//         throw new Error(`❌ 微信接口错误: ${tokenData.errmsg || '未知错误'} (错误码: ${tokenData.errcode})`);
+//     }
 
-        if (receivedInvitationCode) {
-          const inviter = await User.findOne({ invitationCode: receivedInvitationCode });
-          if (inviter) {
-            user.invitedBy = inviter._id;
-            await user.save();
-            inviter.invitedCount = (inviter.invitedCount || 0) + 1;
-            await inviter.save();
-          }
-        }
-      } 
+//     // 2. 获取用户信息
+//     const userInfoUrl = 'https://api.weixin.qq.com/sns/userinfo';
+//     const userInfoParams = new URLSearchParams({
+//       access_token,
+//       openid,
+//       lang: 'zh_CN'
+//     });
 
-    // 2. === 关键修改：直接在这里生成 JWT Token ===
-    const token = jwt.sign(
-      { userId: user._id }, process.env.token_secretKey, { expiresIn: config.expiresIn }
-    );
+//     // fetch 请求
+//     const userInfoRes = await fetch(`${userInfoUrl}?${userInfoParams}`);
+//     const userInfoData = await userInfoRes.json();
+//     const { nickname, headimgurl, sex, city } = userInfoData;
 
-    // 3. 返回 HTML，将 Token 直接传回给父窗口
-    // 注意：我们将 targetOrigin 设为 '*' 以允许本地调试，生产环境建议设为您的域名
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>登录成功</title>
-        <meta charset="utf-8">
-      </head>
-      <body>
-        <h3>登录成功，正在跳转...</h3>
-        <script>
-          try {
-            // 1. 直接将 Token 写入父窗口的 LocalStorage
-            // 注意：因为是同源，我们可以直接操作 window.top.localStorage
-            window.top.localStorage.setItem('token', '${token}');
-            
-            // 2. 同时也存入用户信息
-            const userInfo = {
-              username: '${user.username}',
-              avatar: '${user.avatar}',
-              id: '${user._id}'
-            };
-            window.top.localStorage.setItem('userInfo', JSON.stringify(userInfo));
+//     // 1. 查找或创建用户 (数据库操作)
+//     let user = await User.findOne({ wechatId: openid });
+//     if (!user) {
+//         const userCount = await User.countDocuments();
+//         const invitationCode = await generateInvitationCode(userCount);
+//         user = new User({
+//           username: `wx_${openid.slice(-8)}`,
+//           nickname: nickname,
+//           avatar: headimgurl,
+//           loginType: 'wechat',
+//           wechatId: openid,
+//           invitationCode: invitationCode,
+//           sex: sex,
+//           city: city,
+//         });
+//         await user.save();
 
-            // 3. 强制父窗口跳转到主页
-            console.log('Backend: 登录成功，执行同源跳转');
-            window.top.location.href = '/';
-            
-          } catch (e) {
-            console.error('自动跳转失败，尝试 PostMessage 备用方案', e);
-            // 备用方案：如果同源策略因某种原因失效，回退到 postMessage
-            window.top.postMessage({ 
-              type: 'WECHAT_LOGIN_SUCCESS', 
-              token: '${token}',
-              userInfo: {
-                 username: '${user.username}',
-                 avatar: '${user.avatar}',
-                 id: '${user._id}'
-              }
-            }, '*');
-          }
-        </script>
-      </body>
-      </html>
-    `;
-    
-    res.send(html);
+//         if (receivedInvitationCode) {
+//           const inviter = await User.findOne({ invitationCode: receivedInvitationCode });
+//           if (inviter) {
+//             user.invitedBy = inviter._id;
+//             await user.save();
+//             inviter.invitedCount = (inviter.invitedCount || 0) + 1;
+//             await inviter.save();
+//           }
+//         }
+//       } 
 
-  } catch (error) {
-    console.error('微信回调处理失败:', error.response ? error.response.data : error.message);
-    // 可以在 Redis 中记录失败状态
-    await redisClient.set(redisKey, JSON.stringify({ status: 'failed', error: '回调处理失败' }), { EX: 60 });
-    res.status(500).send('微信授权失败，请重试。');
-  }
-});
+//     // 2. === 关键修改：直接在这里生成 JWT Token ===
+//     const token = jwt.sign(
+//       { userId: user._id }, process.env.token_secretKey, { expiresIn: config.expiresIn }
+//     );
+
+//     // 3. 返回 HTML，将 Token 直接传回给父窗口
+//     // 注意：我们将 targetOrigin 设为 '*' 以允许本地调试，生产环境建议设为您的域名
+//     const html = `
+//       <!DOCTYPE html>
+//       <html>
+//       <head>
+//         <title>登录成功</title>
+//         <meta charset="utf-8">
+//       </head>
+//       <body>
+//         <h3>登录成功，正在跳转...</h3>
+//         <script>
+//           try {
+//             // 1. 直接将 Token 写入父窗口的 LocalStorage
+//             // 注意：因为是同源，我们可以直接操作 window.top.localStorage
+//             window.top.localStorage.setItem('token', '${token}');
+
+//             // 2. 同时也存入用户信息
+//             const userInfo = {
+//               username: '${user.username}',
+//               avatar: '${user.avatar}',
+//               id: '${user._id}'
+//             };
+//             window.top.localStorage.setItem('userInfo', JSON.stringify(userInfo));
+
+//             // 3. 强制父窗口跳转到主页
+//             console.log('Backend: 登录成功，执行同源跳转');
+//             window.top.location.href = '/';
+
+//           } catch (e) {
+//             console.error('自动跳转失败，尝试 PostMessage 备用方案', e);
+//             // 备用方案：如果同源策略因某种原因失效，回退到 postMessage
+//             window.top.postMessage({ 
+//               type: 'WECHAT_LOGIN_SUCCESS', 
+//               token: '${token}',
+//               userInfo: {
+//                  username: '${user.username}',
+//                  avatar: '${user.avatar}',
+//                  id: '${user._id}'
+//               }
+//             }, '*');
+//           }
+//         </script>
+//       </body>
+//       </html>
+//     `;
+
+//     res.send(html);
+
+//   } catch (error) {
+//     console.error('微信回调处理失败:', error.response ? error.response.data : error.message);
+//     // 可以在 Redis 中记录失败状态
+//     await redisClient.set(redisKey, JSON.stringify({ status: 'failed', error: '回调处理失败' }), { EX: 60 });
+//     res.status(500).send('微信授权失败，请重试。');
+//   }
+// });
 
 // --- SSO 单点登录验证接口 (JWT方案 + 会话绑定) ---
 app.post('/api/verify-sso-code', async (req, res) => {
@@ -571,17 +571,17 @@ app.post('/api/loginWithVerificationCode', async (req, res) => {
 
     let ip = emailVerification.ipAddress;
     // 需要下载 ip2region.xdb 文件放到项目中
-    const searcher = new Searcher({ dbPath: './ip2region.xdb' });
+    const searcher = new Searcher({ dbPath: './ip2region_v4.xdb' });
     let city = '';
     try {
-        const data = searcher.search(ip);
-        console.log(data); 
-        // 返回格式通常为: 中国|0|江苏省|南京市|电信
-        const city = data ? data.split('|')[3] : '未知';
-        // data 是 { region: "中国|0|...", ioCount: 1 }
-        // const city = data.region.split('|')[3];
+      const data = searcher.search(ip);
+      console.log(data);
+      // 返回格式通常为: 中国|0|江苏省|南京市|电信
+      const city = data ? data.split('|')[3] : '未知';
+      // data 是 { region: "中国|0|...", ioCount: 1 }
+      // const city = data.region.split('|')[3];
     } catch (e) {
-        console.log(e);
+      console.log(e);
     }
 
     // 创建新用户
@@ -706,7 +706,7 @@ app.post('/api/user/bind-email', auth, async (req, res) => {
     }
 
     // 更新用户信息
-    const user = await User.findByIdAndUpdate(req.userId, { 
+    const user = await User.findByIdAndUpdate(req.userId, {
       email: email,       // 更新邮箱
       username: email     // 👈 同时将用户名更新为邮箱
     }, { new: true });
@@ -736,7 +736,7 @@ app.get('/api/groups/search', async (req, res) => {
     }
     // 使用正则表达式进行模糊搜索，i 表示不区分大小写
     const groups = await Group.find({ name: { $regex: name, $options: 'i' } }).limit(10);
-    
+
     // 返回包含成员数量的结果
     const results = await Promise.all(groups.map(async (group) => {
       const memberCount = await User.countDocuments({ group: group._id });
@@ -978,376 +978,376 @@ app.post('/api/userBook/create', auth, async (req, res) => {
 
 // 获取用户正在学习的课程
 app.get('/api/learning-bookIds', auth, async (req, res) => {
-    try {
-        const userId = req.userId;
-        // 从数据库中获取用户学习的课程
-        const userBooks = await UserBook.find({ userId });
-        
-        const books = userBooks.map(userBook => {
-          return {
-            id: userBook.bookId._id
-          };
-        });
+  try {
+    const userId = req.userId;
+    // 从数据库中获取用户学习的课程
+    const userBooks = await UserBook.find({ userId });
 
-        res.status(200).json(books);
-    } catch (error) {
-        console.error('获取用户正在学习的课程失败:', error.message);
-        console.error('堆栈信息:', error.stack);
-        res.status(500).json({ message: '服务器获取用户正在学习的课程失败' });
-    }
+    const books = userBooks.map(userBook => {
+      return {
+        id: userBook.bookId._id
+      };
+    });
+
+    res.status(200).json(books);
+  } catch (error) {
+    console.error('获取用户正在学习的课程失败:', error.message);
+    console.error('堆栈信息:', error.stack);
+    res.status(500).json({ message: '服务器获取用户正在学习的课程失败' });
+  }
 });
 
 // 获取用户正在学习的课程
 app.get('/api/learning-books', auth, async (req, res) => {
-    try {
-        const userId = req.userId;
-        // 从数据库中获取用户学习的课程
-        const userBooks = await UserBook.find({ userId })
-          .populate('bookId');
-        
-        const books = userBooks.map(userBook => {
-          const progress = userBook.units.length > 0 ? (userBook.units.filter(unit => unit.completed).length / userBook.units.length) * 100 : 0;
-          // 获取 lastCompletedUnitId
-          const lastCompletedUnit = userBook.units.filter(unit => unit.completed).pop();
-          const lastCompletedUnitId = lastCompletedUnit ? lastCompletedUnit.unitId : null;
-          return {
-            id: userBook.bookId._id,
-            name: userBook.bookId.bookName,
-            description: userBook.bookId.description,
-            coverImage: userBook.bookId.coverImage,
-            progress: progress,
-            lastCompletedUnitId: lastCompletedUnitId // 添加 lastCompletedUnitId
-          };
-        });
+  try {
+    const userId = req.userId;
+    // 从数据库中获取用户学习的课程
+    const userBooks = await UserBook.find({ userId })
+      .populate('bookId');
 
-        res.status(200).json(books);
-    } catch (error) {
-        console.error('获取用户正在学习的课程失败:', error.message);
-        console.error('堆栈信息:', error.stack);
-        res.status(500).json({ message: '服务器获取用户正在学习的课程失败' });
-    }
+    const books = userBooks.map(userBook => {
+      const progress = userBook.units.length > 0 ? (userBook.units.filter(unit => unit.completed).length / userBook.units.length) * 100 : 0;
+      // 获取 lastCompletedUnitId
+      const lastCompletedUnit = userBook.units.filter(unit => unit.completed).pop();
+      const lastCompletedUnitId = lastCompletedUnit ? lastCompletedUnit.unitId : null;
+      return {
+        id: userBook.bookId._id,
+        name: userBook.bookId.bookName,
+        description: userBook.bookId.description,
+        coverImage: userBook.bookId.coverImage,
+        progress: progress,
+        lastCompletedUnitId: lastCompletedUnitId // 添加 lastCompletedUnitId
+      };
+    });
+
+    res.status(200).json(books);
+  } catch (error) {
+    console.error('获取用户正在学习的课程失败:', error.message);
+    console.error('堆栈信息:', error.stack);
+    res.status(500).json({ message: '服务器获取用户正在学习的课程失败' });
+  }
 });
 
 
 // 获取所有书籍只包含上架的
 app.get('/api/allBooks', async (req, res) => {
-    try {
-        const books = await Book.find({ isOnShelf: true }).lean();
-        
-        // 并行统计每本书的添加人数和完成人数
-        const booksWithStats = await Promise.all(books.map(async (book) => {
-            const addedCount = await UserBook.countDocuments({ bookId: book._id });
-            const completedCount = await UserBook.countDocuments({ bookId: book._id, completed: true });
-            return {
-                ...book,
-                addedCount,
-                completedCount
-            };
-        }));
+  try {
+    const books = await Book.find({ isOnShelf: true }).lean();
 
-        res.status(200).json(booksWithStats);
-    } catch (error) {
-        console.error('获取所有书籍失败:', error);
-        res.status(500).json({ message: '服务器获取所有书籍失败' });
-    }
+    // 并行统计每本书的添加人数和完成人数
+    const booksWithStats = await Promise.all(books.map(async (book) => {
+      const addedCount = await UserBook.countDocuments({ bookId: book._id });
+      const completedCount = await UserBook.countDocuments({ bookId: book._id, completed: true });
+      return {
+        ...book,
+        addedCount,
+        completedCount
+      };
+    }));
+
+    res.status(200).json(booksWithStats);
+  } catch (error) {
+    console.error('获取所有书籍失败:', error);
+    res.status(500).json({ message: '服务器获取所有书籍失败' });
+  }
 });
 
 // 根据 bookId 获取 book
 app.get('/api/book/getBook', async (req, res) => {
-    try {
-        const { bookId } = req.query;
-        if (!bookId) {
-            return res.status(400).json({ message: '必须提供 bookId' });
-        }
-
-        const book = await Book.findById(bookId);
-        if (!book) {
-            return res.status(404).json({ message: '未找到该教材' });
-        }
-
-        res.status(200).json(book);
-    } catch (error) {
-        console.error('获取 book失败:', error);
-        res.status(500).json({ message: '服务器获取 book失败' });
+  try {
+    const { bookId } = req.query;
+    if (!bookId) {
+      return res.status(400).json({ message: '必须提供 bookId' });
     }
+
+    const book = await Book.findById(bookId);
+    if (!book) {
+      return res.status(404).json({ message: '未找到该教材' });
+    }
+
+    res.status(200).json(book);
+  } catch (error) {
+    console.error('获取 book失败:', error);
+    res.status(500).json({ message: '服务器获取 book失败' });
+  }
 });
 
 // 创建或更新单元
 app.post('/api/book/createUnit', async (req, res) => {
-    try {
-        const { bookId, units } = req.body;
+  try {
+    const { bookId, units } = req.body;
 
-        if (!bookId || !units || !Array.isArray(units)) {
-            return res.status(400).json({ message: '请求参数错误' });
-        }
-
-        const book = await Book.findById(bookId);
-        if (!book) {
-            return res.status(404).json({ message: '书籍未找到' });
-        }
-
-        for (const unitData of units) {
-            const { uint, words, sentences } = unitData;
-
-            if (!uint || !Array.isArray(words) || !Array.isArray(sentences)) {
-                return res.status(400).json({ message: '单元数据错误' });
-            }
-
-            // 处理句子，填充 words 数组
-            for (const sentence of sentences) {
-                const sentenceWords = sentence.text.split(' ').map(w => w.replace(/[.,?!]/g, ''));
-                sentence.words = [];
-                for (const wordText of sentenceWords) {
-                    if (!wordText || wordText.trim() === '') continue; // 跳过空或无效的字符串
-                    let word = await Word.findOne({ text: wordText.trim() });
-                    if (!word) {
-                        word = new Word({ text: wordText.trim() });
-                        await word.save();
-                    }
-                    sentence.words.push(word._id);
-                }
-            }
-            // 检查单元是否已存在
-            const existingUnitIndex = book.units.findIndex(u => u.unit === uint);
-
-            const wordIds = [];
-            for (const wordText of words) {
-                if (!wordText || wordText.trim() === '') continue; // 跳过空或无效的字符串
-                let word = await Word.findOne({ text: wordText.trim() });
-                if (!word) {
-                    word = new Word({ text: wordText.trim() });
-                    await word.save();
-                }
-                wordIds.push(word._id);
-            }
-
-            if (existingUnitIndex > -1) {
-                // 更新现有单元
-                book.units[existingUnitIndex].words = wordIds;
-                book.units[existingUnitIndex].sentences = sentences;
-            } else {
-                // 添加新单元
-                book.units.push({
-                    unit: uint,
-                    words: wordIds,
-                    sentences: sentences
-                });
-            }
-         }
-
-        await book.save();
-        res.status(200).json({ message: '课程内容保存成功!' });
-    } catch (error) {
-        console.error('保存课程内容失败:', error);
-        res.status(500).json({ message: '服务器保存课程内容失败' });
+    if (!bookId || !units || !Array.isArray(units)) {
+      return res.status(400).json({ message: '请求参数错误' });
     }
+
+    const book = await Book.findById(bookId);
+    if (!book) {
+      return res.status(404).json({ message: '书籍未找到' });
+    }
+
+    for (const unitData of units) {
+      const { uint, words, sentences } = unitData;
+
+      if (!uint || !Array.isArray(words) || !Array.isArray(sentences)) {
+        return res.status(400).json({ message: '单元数据错误' });
+      }
+
+      // 处理句子，填充 words 数组
+      for (const sentence of sentences) {
+        const sentenceWords = sentence.text.split(' ').map(w => w.replace(/[.,?!]/g, ''));
+        sentence.words = [];
+        for (const wordText of sentenceWords) {
+          if (!wordText || wordText.trim() === '') continue; // 跳过空或无效的字符串
+          let word = await Word.findOne({ text: wordText.trim() });
+          if (!word) {
+            word = new Word({ text: wordText.trim() });
+            await word.save();
+          }
+          sentence.words.push(word._id);
+        }
+      }
+      // 检查单元是否已存在
+      const existingUnitIndex = book.units.findIndex(u => u.unit === uint);
+
+      const wordIds = [];
+      for (const wordText of words) {
+        if (!wordText || wordText.trim() === '') continue; // 跳过空或无效的字符串
+        let word = await Word.findOne({ text: wordText.trim() });
+        if (!word) {
+          word = new Word({ text: wordText.trim() });
+          await word.save();
+        }
+        wordIds.push(word._id);
+      }
+
+      if (existingUnitIndex > -1) {
+        // 更新现有单元
+        book.units[existingUnitIndex].words = wordIds;
+        book.units[existingUnitIndex].sentences = sentences;
+      } else {
+        // 添加新单元
+        book.units.push({
+          unit: uint,
+          words: wordIds,
+          sentences: sentences
+        });
+      }
+    }
+
+    await book.save();
+    res.status(200).json({ message: '课程内容保存成功!' });
+  } catch (error) {
+    console.error('保存课程内容失败:', error);
+    res.status(500).json({ message: '服务器保存课程内容失败' });
+  }
 });
 
 // 根据 userId 和 bookId 获取 userBook 对象
 app.get('/api/userBook/getUserBook', auth, async (req, res) => {
-    try {
-        const { bookId } = req.query;
-        const userId = req.userId;
-        if (!bookId) {
-            return res.status(400).json({ message: '必须提供 bookId' });
-        }
-
-        const userBook = await UserBook.findOne({ userId: userId, bookId: bookId }).populate('bookId');
-
-        if (!userBook) {
-            return res.status(404).json({ message: '未找到该用户课程' });
-        }
-
-        res.status(200).json(userBook);
-    } catch (error) {
-        console.error('获取 userBook 失败:', error);
-        res.status(500).json({ message: '服务器获取 userBook 失败' });
+  try {
+    const { bookId } = req.query;
+    const userId = req.userId;
+    if (!bookId) {
+      return res.status(400).json({ message: '必须提供 bookId' });
     }
+
+    const userBook = await UserBook.findOne({ userId: userId, bookId: bookId }).populate('bookId');
+
+    if (!userBook) {
+      return res.status(404).json({ message: '未找到该用户课程' });
+    }
+
+    res.status(200).json(userBook);
+  } catch (error) {
+    console.error('获取 userBook 失败:', error);
+    res.status(500).json({ message: '服务器获取 userBook 失败' });
+  }
 });
 
 
 // 有道API要求的签名截断函数
 function truncate(q) {
-    const len = q.length;
-    if (len <= 20) return q;
-    return q.substring(0, 10) + len + q.substring(len - 10, len);
+  const len = q.length;
+  if (len <= 20) return q;
+  return q.substring(0, 10) + len + q.substring(len - 10, len);
 }
 
 // 【新路由】
 app.get('/api/lookup', async (req, res) => {
-    const { word } = req.query;
-    if (!word) {
-        return res.status(400).json({ error: '缺少单词' });
-    }
+  const { word } = req.query;
+  if (!word) {
+    return res.status(400).json({ error: '缺少单词' });
+  }
 
-    const salt = crypto.randomUUID();
-    const curtime = Math.round(new Date().getTime() / 1000);
-    const query = word;
-    
-    // 1. 生成签名
-    const str1 = process.env.YOUDAO_APP_KEY + truncate(query) + salt + curtime + config.YOUDAO_APP_SECRET;
-    const sign = crypto.createHash('sha256').update(str1).digest('hex');
+  const salt = crypto.randomUUID();
+  const curtime = Math.round(new Date().getTime() / 1000);
+  const query = word;
 
-    // 2. 准备请求参数
-    const params = new URLSearchParams({
-        q: query,
-        from: 'en',
-        to: 'zh-CHS', // 英语到简体中文
-        appKey: process.env.YOUDAO_APP_KEY,
-        salt: salt,
-        sign: sign,
-        signType: 'v3',
-        curtime: curtime,
+  // 1. 生成签名
+  const str1 = process.env.YOUDAO_APP_KEY + truncate(query) + salt + curtime + config.YOUDAO_APP_SECRET;
+  const sign = crypto.createHash('sha256').update(str1).digest('hex');
+
+  // 2. 准备请求参数
+  const params = new URLSearchParams({
+    q: query,
+    from: 'en',
+    to: 'zh-CHS', // 英语到简体中文
+    appKey: process.env.YOUDAO_APP_KEY,
+    salt: salt,
+    sign: sign,
+    signType: 'v3',
+    curtime: curtime,
+  });
+
+  try {
+    // 3. 发送请求到有道
+    const youdaoResponse = await fetch('https://openapi.youdao.com/api?' + params.toString(), {
+      method: 'POST',
     });
 
-    try {
-        // 3. 发送请求到有道
-        const youdaoResponse = await fetch('https://openapi.youdao.com/api?' + params.toString(), {
-            method: 'POST',
-        });
-        
-        const data = await youdaoResponse.json();
-        
-        // 4. 将结果转发给前端
-        res.status(200).json(data);
+    const data = await youdaoResponse.json();
 
-    } catch (error) {
-        console.error('有道API请求失败:', error);
-        res.status(500).json({ error: '服务器查询有道失败' });
-    }
+    // 4. 将结果转发给前端
+    res.status(200).json(data);
+
+  } catch (error) {
+    console.error('有道API请求失败:', error);
+    res.status(500).json({ error: '服务器查询有道失败' });
+  }
 });
 
 // 根据单词查询中文和音标
 app.get('/api/word/query', async (req, res) => {
-    try {
-        const { word } = req.query;
-        if (!word) {
-            return res.status(400).json({ message: '必须提供单词' });
-        }
-
-        const result = await Word.findOne({ text: word });
-
-        if (!result) {
-            return res.status(404).json({ message: '未找到该单词' });
-        }
-
-        res.status(200).json({ chinese: result.chinese, phonetic: result.phonetic });
-    } catch (error) {
-        console.error('查询单词失败:', error);
-        res.status(500).json({ message: '服务器查询单词失败' });
+  try {
+    const { word } = req.query;
+    if (!word) {
+      return res.status(400).json({ message: '必须提供单词' });
     }
+
+    const result = await Word.findOne({ text: word });
+
+    if (!result) {
+      return res.status(404).json({ message: '未找到该单词' });
+    }
+
+    res.status(200).json({ chinese: result.chinese, phonetic: result.phonetic });
+  } catch (error) {
+    console.error('查询单词失败:', error);
+    res.status(500).json({ message: '服务器查询单词失败' });
+  }
 });
 
 // 根据 userId 和 bookId 依据用户课程的进度，获取用户最新要完成的 units，使前端能获取 words 和 sentences
 app.get('/api/userBook/getNextUnit', auth, async (req, res) => {
-    try {
-        const { bookId } = req.query;
-        const userId = req.userId;
-        if (!bookId) {
-            return res.status(400).json({ message: '必须提供 bookId' });
-        }
-
-        const userBook = await UserBook.findOne({ userId: userId, bookId: bookId })
-            .populate({
-                path: 'bookId',
-                select: 'units bookName credits',
-                populate: [
-                    { path: 'units.words', model: 'Word' },
-                    { path: 'units.sentences.words', model: 'Word' }
-                ]
-            })
-            .lean();
-        if (!userBook) {
-            return res.status(404).json({ message: '未找到该用户课程' });
-        }
-
-        let nextUnit = null;
-        for (const unit of userBook.units) {
-            if (!unit.completed) {
-                nextUnit = unit;
-                break;
-            }
-        }
-
-        if (!nextUnit) {
-           return res.status(200).json({ message: '课程已全部完成' });
-        }
-
-        // 【关键修正】: bookId 现在是被填充的对象
-        if (!userBook.bookId || !userBook.bookId.units) {
-            return res.status(404).json({ message: '关联的书籍或单元数据不存在' });
-        }
-
-        // 查找对应的 unit
-        const unit = userBook.bookId.units.find(u => nextUnit.unitId && u._id.equals(nextUnit.unitId));
-        if (!unit) {
-            return res.status(404).json({ message: '未找到该单元' });
-        }
-
-        res.status(200).json({
-            unitName: unit.unit,
-            nextUnit: nextUnit,
-            words: unit.words,
-            sentences: unit.sentences,
-            bookCredits: userBook.bookId.credits
-            // totalUnits: userBook.bookId.units.length
-        });
-    } catch (error) {
-        console.error('获取下一个单元失败:', error);
-        res.status(500).json({ message: '服务器获取下一个单元失败' });
+  try {
+    const { bookId } = req.query;
+    const userId = req.userId;
+    if (!bookId) {
+      return res.status(400).json({ message: '必须提供 bookId' });
     }
+
+    const userBook = await UserBook.findOne({ userId: userId, bookId: bookId })
+      .populate({
+        path: 'bookId',
+        select: 'units bookName credits',
+        populate: [
+          { path: 'units.words', model: 'Word' },
+          { path: 'units.sentences.words', model: 'Word' }
+        ]
+      })
+      .lean();
+    if (!userBook) {
+      return res.status(404).json({ message: '未找到该用户课程' });
+    }
+
+    let nextUnit = null;
+    for (const unit of userBook.units) {
+      if (!unit.completed) {
+        nextUnit = unit;
+        break;
+      }
+    }
+
+    if (!nextUnit) {
+      return res.status(200).json({ message: '课程已全部完成' });
+    }
+
+    // 【关键修正】: bookId 现在是被填充的对象
+    if (!userBook.bookId || !userBook.bookId.units) {
+      return res.status(404).json({ message: '关联的书籍或单元数据不存在' });
+    }
+
+    // 查找对应的 unit
+    const unit = userBook.bookId.units.find(u => nextUnit.unitId && u._id.equals(nextUnit.unitId));
+    if (!unit) {
+      return res.status(404).json({ message: '未找到该单元' });
+    }
+
+    res.status(200).json({
+      unitName: unit.unit,
+      nextUnit: nextUnit,
+      words: unit.words,
+      sentences: unit.sentences,
+      bookCredits: userBook.bookId.credits
+      // totalUnits: userBook.bookId.units.length
+    });
+  } catch (error) {
+    console.error('获取下一个单元失败:', error);
+    res.status(500).json({ message: '服务器获取下一个单元失败' });
+  }
 });
 
 // 根据 userId, bookId 和 unitId 将单元标记为已完成
 app.post('/api/userBook/completeUnit', auth, async (req, res) => {
-    try {
-        const { bookId, unitId, creditsEarned } = req.body;
-        const userId = req.userId;
+  try {
+    const { bookId, unitId, creditsEarned } = req.body;
+    const userId = req.userId;
 
-        if (!bookId || !unitId) {
-             return res.status(400).json({ message: '必须提供 bookId 和 unitId' });
-        }
-
-        const userBook = await UserBook.findOne({ userId: userId, bookId: bookId });
-
-        if (!userBook) {
-            return res.status(404).json({ message: '未找到该用户课程' });
-        }
-
-        const unitToUpdate = userBook.units.find(u => u.unitId.equals(unitId));
-        if (unitToUpdate && !unitToUpdate.completed) {
-            unitToUpdate.completed = true;
-
-            // 检查是否所有单元都已完成
-            const allUnitsCompleted = userBook.units.every(u => u.completed);
-            if (allUnitsCompleted) {
-                userBook.completed = true;
-            }
-
-            // 增加用户学分
-            if (creditsEarned && creditsEarned > 0) {
-                const user = await User.findById(userId);
-                if (user) {
-                    user.credits = (user.credits || 0) + creditsEarned;
-                    user.golds = (user.golds || 0) + creditsEarned;
-                    await user.save();
-                }
-            }
-            
-            await userBook.save();
-            res.status(200).json({ message: '单元完成，学分已增加！', allCompleted: allUnitsCompleted });
-
-        } else if (unitToUpdate && unitToUpdate.completed) {
-            res.status(200).json({ message: '单元之前已完成' });
-        } else {
-            console.warn(`Unit ${unitId} not found in UserBook ${userBook._id} but proceeding.`);
-            res.status(200).json({ message: '单元未在用户课程中找到，但允许继续' });
-        }
-
-    } catch (error) {
-        console.error('标记单元完成失败:', error);
-        res.status(500).json({ message: '服务器标记单元完成失败' });
+    if (!bookId || !unitId) {
+      return res.status(400).json({ message: '必须提供 bookId 和 unitId' });
     }
+
+    const userBook = await UserBook.findOne({ userId: userId, bookId: bookId });
+
+    if (!userBook) {
+      return res.status(404).json({ message: '未找到该用户课程' });
+    }
+
+    const unitToUpdate = userBook.units.find(u => u.unitId.equals(unitId));
+    if (unitToUpdate && !unitToUpdate.completed) {
+      unitToUpdate.completed = true;
+
+      // 检查是否所有单元都已完成
+      const allUnitsCompleted = userBook.units.every(u => u.completed);
+      if (allUnitsCompleted) {
+        userBook.completed = true;
+      }
+
+      // 增加用户学分
+      if (creditsEarned && creditsEarned > 0) {
+        const user = await User.findById(userId);
+        if (user) {
+          user.credits = (user.credits || 0) + creditsEarned;
+          user.golds = (user.golds || 0) + creditsEarned;
+          await user.save();
+        }
+      }
+
+      await userBook.save();
+      res.status(200).json({ message: '单元完成，学分已增加！', allCompleted: allUnitsCompleted });
+
+    } else if (unitToUpdate && unitToUpdate.completed) {
+      res.status(200).json({ message: '单元之前已完成' });
+    } else {
+      console.warn(`Unit ${unitId} not found in UserBook ${userBook._id} but proceeding.`);
+      res.status(200).json({ message: '单元未在用户课程中找到，但允许继续' });
+    }
+
+  } catch (error) {
+    console.error('标记单元完成失败:', error);
+    res.status(500).json({ message: '服务器标记单元完成失败' });
+  }
 });
 
 app.listen(port, () => {
@@ -1478,132 +1478,132 @@ app.post('/api/messages/:id/replies', auth, async (req, res) => {
 });
 
 // --- 排行榜 API ---
-    // 1. 群排行榜
-    app.get('/api/leaderboard/groups', auth, async (req, res) => {
-      try {
-        // 聚合管道：计算每个群组的总学分
-        const groupsWithTotalCredits = await User.aggregate([
-          { $match: { group: { $ne: null } } }, // 只考虑有群组的用户
-          { $group: { _id: "$group", totalCredits: { $sum: "$credits" } } },
-          { $sort: { totalCredits: -1 } }
-        ]);
-    
-        // 获取所有群组的 ID 列表
-        const groupIds = groupsWithTotalCredits.map(g => g._id);
-    
-        // 获取当前用户的群组 ID
-        const currentUser = await User.findById(req.userId).select('group');
-        const currentUserGroupId = currentUser ? currentUser.group : null;
-    
-        // 找到当前用户群组的排名
-        let currentUserGroupRank = -1;
-        if (currentUserGroupId) {
-          currentUserGroupRank = groupIds.findIndex(id => id.equals(currentUserGroupId)) + 1;
-        }
-    
-        // 获取 Top 10 的群组信息
-        const top10GroupIds = groupIds.slice(0, 10);
-        const top10Groups = await Group.find({ '_id': { $in: top10GroupIds } }).lean();
-    
-        // 将总学分附加到群组信息上
-        const top10Result = top10Groups.map(group => {
-          const stats = groupsWithTotalCredits.find(g => g._id.equals(group._id));
-          return {
-            ...group,
-            totalCredits: stats ? stats.totalCredits : 0,
-            rank: groupIds.findIndex(id => id.equals(group._id)) + 1
-          };
-        }).sort((a, b) => a.rank - b.rank); // 确保排序正确
-    
-        let myGroupInfo = null;
-        // 如果当前用户的群组不在 Top 10 且存在
-        if (currentUserGroupId && currentUserGroupRank > 10) {
-          const myGroup = await Group.findById(currentUserGroupId).lean();
-          const myGroupStats = groupsWithTotalCredits.find(g => g._id.equals(currentUserGroupId));
-          myGroupInfo = {
-            ...myGroup,
-            totalCredits: myGroupStats ? myGroupStats.totalCredits : 0,
-            rank: currentUserGroupRank
-          };
-        }
-    
-        res.status(200).json({
-          top10: top10Result,
-          myGroup: myGroupInfo
-        });
-        
-      } catch (error) {
-        console.error('获取群排行榜失败:', error);
-        res.status(500).json({ message: '服务器获取群排行榜失败' });
-      }
+// 1. 群排行榜
+app.get('/api/leaderboard/groups', auth, async (req, res) => {
+  try {
+    // 聚合管道：计算每个群组的总学分
+    const groupsWithTotalCredits = await User.aggregate([
+      { $match: { group: { $ne: null } } }, // 只考虑有群组的用户
+      { $group: { _id: "$group", totalCredits: { $sum: "$credits" } } },
+      { $sort: { totalCredits: -1 } }
+    ]);
+
+    // 获取所有群组的 ID 列表
+    const groupIds = groupsWithTotalCredits.map(g => g._id);
+
+    // 获取当前用户的群组 ID
+    const currentUser = await User.findById(req.userId).select('group');
+    const currentUserGroupId = currentUser ? currentUser.group : null;
+
+    // 找到当前用户群组的排名
+    let currentUserGroupRank = -1;
+    if (currentUserGroupId) {
+      currentUserGroupRank = groupIds.findIndex(id => id.equals(currentUserGroupId)) + 1;
+    }
+
+    // 获取 Top 10 的群组信息
+    const top10GroupIds = groupIds.slice(0, 10);
+    const top10Groups = await Group.find({ '_id': { $in: top10GroupIds } }).lean();
+
+    // 将总学分附加到群组信息上
+    const top10Result = top10Groups.map(group => {
+      const stats = groupsWithTotalCredits.find(g => g._id.equals(group._id));
+      return {
+        ...group,
+        totalCredits: stats ? stats.totalCredits : 0,
+        rank: groupIds.findIndex(id => id.equals(group._id)) + 1
+      };
+    }).sort((a, b) => a.rank - b.rank); // 确保排序正确
+
+    let myGroupInfo = null;
+    // 如果当前用户的群组不在 Top 10 且存在
+    if (currentUserGroupId && currentUserGroupRank > 10) {
+      const myGroup = await Group.findById(currentUserGroupId).lean();
+      const myGroupStats = groupsWithTotalCredits.find(g => g._id.equals(currentUserGroupId));
+      myGroupInfo = {
+        ...myGroup,
+        totalCredits: myGroupStats ? myGroupStats.totalCredits : 0,
+        rank: currentUserGroupRank
+      };
+    }
+
+    res.status(200).json({
+      top10: top10Result,
+      myGroup: myGroupInfo
     });
 
-// 2. 个人排行榜
-        app.get('/api/leaderboard/users', auth, async (req, res) => {
-          try {
-            // 获取所有用户排名
-            const allUsersRanked = await User.find({}, 'nickname avatar credits')
-              .sort({ credits: -1 })
-              .lean();
-        
-            // 找到当前用户的排名
-            const myRank = allUsersRanked.findIndex(user => user._id.toString() === req.userId) + 1;
-            const me = allUsersRanked.find(user => user._id.toString() === req.userId);
-            
-            // 确保 myInfo 总是被填充
-            const myInfo = {
-                rank: myRank,
-                ...me
-            };
-        
-            // 获取 Top 10 用户
-            const top10 = allUsersRanked.slice(0, 10).map((user, index) => ({
-              rank: index + 1,
-              ...user
-            }));
-        
-            res.status(200).json({ top10, me: myInfo });
-          } catch (error) {
-            console.error('获取个人排行榜失败:', error);
-            res.status(500).json({ message: '服务器获取个人排行榜失败' });
-          }
-        });
+  } catch (error) {
+    console.error('获取群排行榜失败:', error);
+    res.status(500).json({ message: '服务器获取群排行榜失败' });
+  }
+});
 
-                // 3. 我的群内排行榜
-        app.get('/api/leaderboard/group-members', auth, async (req, res) => {
-          try {
-            // 1. 查找当前用户及其群组信息
-            const currentUser = await User.findById(req.userId).select('group');
-            if (!currentUser || !currentUser.group) {
-              return res.status(404).json({ message: '您尚未加入任何群组' });
-            }
-        
-            // 2. 查找群组内的所有成员，并按学分排序
-            const groupMembers = await User.find({ group: currentUser.group }, 'nickname avatar credits')
-              .sort({ credits: -1 })
-              .lean();
-              
-            // 3. 找到当前用户在群内的排名
-            const myRankInGroup = groupMembers.findIndex(member => member._id.toString() === req.userId) + 1;
-            const me = groupMembers.find(member => member._id.toString() === req.userId);
-            const myInfo = {
-                rank: myRankInGroup,
-                ...me
-            };
-        
-            // 4. 获取群内 Top 10
-            const top10InGroup = groupMembers.slice(0, 10).map((member, index) => ({
-              rank: index + 1,
-              ...member
-            }));
-        
-            res.status(200).json({ top10: top10InGroup, me: myInfo });
-        
-          } catch (error) {
-            console.error('获取群内排行榜失败:', error);
-            res.status(500).json({ message: '服务器获取群内排行榜失败' });
-          }
-        });
+// 2. 个人排行榜
+app.get('/api/leaderboard/users', auth, async (req, res) => {
+  try {
+    // 获取所有用户排名
+    const allUsersRanked = await User.find({}, 'nickname avatar credits')
+      .sort({ credits: -1 })
+      .lean();
+
+    // 找到当前用户的排名
+    const myRank = allUsersRanked.findIndex(user => user._id.toString() === req.userId) + 1;
+    const me = allUsersRanked.find(user => user._id.toString() === req.userId);
+
+    // 确保 myInfo 总是被填充
+    const myInfo = {
+      rank: myRank,
+      ...me
+    };
+
+    // 获取 Top 10 用户
+    const top10 = allUsersRanked.slice(0, 10).map((user, index) => ({
+      rank: index + 1,
+      ...user
+    }));
+
+    res.status(200).json({ top10, me: myInfo });
+  } catch (error) {
+    console.error('获取个人排行榜失败:', error);
+    res.status(500).json({ message: '服务器获取个人排行榜失败' });
+  }
+});
+
+// 3. 我的群内排行榜
+app.get('/api/leaderboard/group-members', auth, async (req, res) => {
+  try {
+    // 1. 查找当前用户及其群组信息
+    const currentUser = await User.findById(req.userId).select('group');
+    if (!currentUser || !currentUser.group) {
+      return res.status(404).json({ message: '您尚未加入任何群组' });
+    }
+
+    // 2. 查找群组内的所有成员，并按学分排序
+    const groupMembers = await User.find({ group: currentUser.group }, 'nickname avatar credits')
+      .sort({ credits: -1 })
+      .lean();
+
+    // 3. 找到当前用户在群内的排名
+    const myRankInGroup = groupMembers.findIndex(member => member._id.toString() === req.userId) + 1;
+    const me = groupMembers.find(member => member._id.toString() === req.userId);
+    const myInfo = {
+      rank: myRankInGroup,
+      ...me
+    };
+
+    // 4. 获取群内 Top 10
+    const top10InGroup = groupMembers.slice(0, 10).map((member, index) => ({
+      rank: index + 1,
+      ...member
+    }));
+
+    res.status(200).json({ top10: top10InGroup, me: myInfo });
+
+  } catch (error) {
+    console.error('获取群内排行榜失败:', error);
+    res.status(500).json({ message: '服务器获取群内排行榜失败' });
+  }
+});
 
 /*
 // --- 产品 API ---
@@ -1735,30 +1735,30 @@ app.get('/api/payment/query-status/:orderNo', auth, async (req, res) => {
 });
 */
 
-        // --- 黄历 API (使用 solarlunar 库) ---
-        app.get('/api/almanac', (req, res) => {
-          try {
-            const today = new Date();
-            const year = today.getFullYear();
-            const month = today.getMonth() + 1;
-            const day = today.getDate();
+// --- 黄历 API (使用 solarlunar 库) ---
+app.get('/api/almanac', (req, res) => {
+  try {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth() + 1;
+    const day = today.getDate();
 
-            const solarData = solarlunar.solar2lunar(year, month, day);
+    const solarData = solarlunar.solar2lunar(year, month, day);
 
-            // 优先显示农历节日，如果没有，则显示公历节日
-            const festival = solarData.lunarFestival || solarData.festival || '';
-            
-            const responseData = {
-              lunarDate: `农历 ${solarData.monthCn}${solarData.dayCn}`,
-              festival: festival,
-              ganzhi: `${solarData.gzYear}年 ${solarData.gzMonth}月 ${solarData.gzDay}日`,
-              jieqi: solarData.term || ''
-            };
+    // 优先显示农历节日，如果没有，则显示公历节日
+    const festival = solarData.lunarFestival || solarData.festival || '';
 
-            res.status(200).json(responseData);
+    const responseData = {
+      lunarDate: `农历 ${solarData.monthCn}${solarData.dayCn}`,
+      festival: festival,
+      ganzhi: `${solarData.gzYear}年 ${solarData.gzMonth}月 ${solarData.gzDay}日`,
+      jieqi: solarData.term || ''
+    };
 
-          } catch (error) {
-            console.error('生成农历数据失败:', error);
-            res.status(500).json({ message: '服务器生成农历数据失败' });
-          }
-        });
+    res.status(200).json(responseData);
+
+  } catch (error) {
+    console.error('生成农历数据失败:', error);
+    res.status(500).json({ message: '服务器生成农历数据失败' });
+  }
+});

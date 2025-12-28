@@ -1,12 +1,15 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import IndexPage from '../components/IndexPage.vue' // 这个现在是新的首页（原 WelcomePage）
-// import LoginPage from '../components/LoginPage.vue' // 这个是新的登录页（原 IndexPage）
-
 const routes = [
+  {
+    path: '/login',
+    name: 'login',
+    component: () => import('../components/LoginPage.vue')
+  },
   {
     path: '/',
     name: 'index',
-    component: IndexPage, 
+    component: IndexPage,
     children: [
       {
         path: '', // 默认子路由
@@ -62,14 +65,14 @@ const routes = [
         meta: { requiresAuth: true }
       },
       {
-       path: 'games',
-       name: 'games',
-       component: () => import('../components/GamesPage.vue')
+        path: 'games',
+        name: 'games',
+        component: () => import('../components/GamesPage.vue')
       },
       {
-       path: 'bubble-game',
-       name: 'BubbleGame',
-       component: () => import('../components/BubbleGame.vue')
+        path: 'bubble-game',
+        name: 'BubbleGame',
+        component: () => import('../components/BubbleGame.vue')
       }
     ]
   },
