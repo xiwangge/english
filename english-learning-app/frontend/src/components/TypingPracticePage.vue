@@ -227,38 +227,9 @@ const songList = [
     ],
     lrc: `[00:19.729]Every night in my dreams\n[00:24.290]I see you\n[00:26.709]I feel you\n[00:29.419]That is how I know you go on\n[00:41.379]Far across the distance\n[00:43.156]And spaces between us.\n[00:48.766]You have come to show you go on\n[00:58.495]Near far,\n[01:02.726]wherever you are\n[01:07.289]I believe that the heart does go on\n[01:18.170]Once more,\n[01:22.188]you open the door,\n[01:27.789]And you're here in my heart.\n[01:32.060]And my heart will go on and on\n[01:41.700]Love can touch us one time.\n[01:49.722]And last for a life**me\n[01:57.587]And never let go till we're gone,\n[02:06.906]Love was when I loved you\n[02:11.390]One true time I hold to.\n[02:16.789]In my life we'll always go on.\n[02:26.990]Near far,\n[02:30.990]wherever you are\n[02:34.729]I believe that the heart does go on\n[02:45.527]Once more,\n[02:49.759]you open the door,\n[02:54.270]And you're here in my heart,\n[02:59.299]And my heart will go on and on\n[03:09.700]You're here,\n[03:25.390]You're here,\n[03:30.090]there's nothing I fear.\n[03:32.979]And I know that my heart will go on\n[03:44.990]we'll stay forever this way.\n[03:52.990]You are safe in my heart,\n[03:57.589]and my heart will go on and on\n`
   },
+  
   {
     id: 2,
-    title: "Yesterday Once More",
-    src: "/mp3/Yesterday Once More.mp3",
-    lightCues: [
-      { time: 2.8, action: 'scattered' },
-      { time: 12.8, action: 'off' } 
-    ],
-    lrc: `[00:02.879]When I was young I'd listen to the radio\n[00:08.918]Waiting for my favorite songs\n[00:14.559]When they played I'd sing along\n[00:19.259]It made me smile\n[00:23.909]Those were such happy times and not so long ago\n[00:32.298]how I wondered where they'd gone\n[00:37.890]But they're back again just like a long lost friend\n[00:43.979]all the songs I loved so well\n[00:49.239]Every shalalala every wo'wo\n[00:55.829]Still shines\n[01:01.679]Every shing-a-ling-a-ling\n[01:04.249]That they're starting to sing\n[01:06.990]So fine\n[01:13.119]When they get to the part\n[01:15.669]Where he's breaking her heart\n[01:19.900]It can really make me cry\n[01:24.200]Just like before\n[01:29.289]It's yesterday once more\n[01:38.890](shoobie do lang lang)\n[01:42.178]Looking back on how it was in years gone by\n[01:47.828]And the good times that I had\n[01:54.190]Makes today seem rather sad\n[01:58.349]So much has changed\n[02:07.390]It was songs of love that I would sing to then\n[02:11.228]and I'd memorize each word\n[02:16.168]Those old melodies still sound so good to me\n[02:23.198]As they melt the years away\n[02:29.390]Every shalalala every wo'wo still shines\n[02:39.998]Every shing-a-ling-a-ling\n[02:42.327]That they're starting to sing\n[02:45.648]So fine\n[02:51.577]All my best memories come back clearly to me\n[02:56.868]Some can even make me cry\n[03:01.879]Just like before\n[03:07.698]It's yesterday once more\n[03:10.659](shoobie do lang lang)\n[03:14.898]Every shalalala every wo'wo still shines\n[03:26.238]Every shing-a-ling-a-ling\n[03:29.398]That they're starting to sing\n[03:31.668]So fine\n[03:36.898]Every shalalala every wo'wo still shines.\n`
-  },
-  {
-    id: 3,
-    title: "Perfect",
-    src: "/mp3/Perfect.mp3",
-    lightCues: [
-      { time: 2.8, action: 'scattered' },
-      { time: 12.8, action: 'off' }
-    ],
-    lrc: `[00:02.83]I found a love for me\n[00:07.97]Darling, just dive right in and follow my lead\n[00:17.84]Well, I found a girl, beautiful and sweet\n[00:25.62]Oh, I never knew you were the someone waiting for me\n[00:32.33]'Cause we were just kids when we fell in love\n[00:36.53]Not knowing what it was\n[00:40.33]I will not give you up this time\n[00:47.86]darling, just kiss me slow, your heart is all I own\n[00:55.35]And in your eyes you're holding mine\n[01:02.40]Baby, I'm dancing in the dark with you between my arms\n[01:13.09]Barefoot on the grass, listening to our favourite song\n[01:20.62]When you said you looked a mess, I whispered underneath my breath\n[01:27.85]But you heard it, darling, you look perfect tonight\n[01:35.57]\n[01:41.54]Well I found a woman, stronger than anyone I know\n[01:47.89]She shares my dreams, I hope that someday I'll share her home\n[01:55.95]I found a love, to carry more than just my secrets\n[02:03.76]To carry love, to carry children of our own\n[02:10.98]We are still kids, but we're so in love\n[02:15.17]Fighting against all odds\n[02:18.85]I know we'll be alright this time\n[02:26.41]Darling, just hold my hand\n[02:30.26]Be my girl, I'll be your man\n[02:33.99]I see my future in your eyes\n[02:40.63]Baby, I'm dancing in the dark, with you between my arms\n[02:51.45]Barefoot on the grass, listening to our favourite song\n[02:59.05]When I saw you in that dress, looking so beautiful\n[03:05.97]I don't deserve this, darling you look perfect tonight\n[03:16.72]\n[03:19.92]Baby, I'm dancing in the dark, with you between my arms\n[03:36.85]Barefoot on the grass, listening to our favourite song\n[03:44.62]I have faith in what I see\n[03:47.93]Now I know I have met an angel in person\n[03:54.46]And she looks perfect, I don't deserve this\n[04:02.28]You look perfect tonight\n[04:07.32]\n`
-  },
-  {
-    id: 4,
-    title: "Blinded By The Night",
-    src: "/mp3/Blinded By The Night.mp3",
-    lightCues: [
-      { time: 2.8, action: 'scattered' },
-      { time: 12.8, action: 'off' }
-    ],
-    lrc: `[00:23.580]An uncertain spring\n[00:27.020]Changed it all\n[00:28.120]You can count my rings\n[00:31.900]After I fall\n[00:34.100]And still not know a thing about me\n[00:43.560]Years from now we'll recall\n[00:46.220]The madness of it all\n[00:48.320]Or maybe nothing at all\n[00:51.000]As they say\n[00:53.020]\"Night falls\"\n[00:57.890]Around me\n[01:03.120]Late spinning nights\n[01:06.340]Staring deep into my bright disco eyes\n[01:11.990]Each one reflecting their own dusk\n[01:16.540]While our eyes adjust\n[01:23.430]Every star so unaware how dark\n[01:27.330]Their surroundings are\n[01:31.110]I wasn't looking for the light\n[01:37.870]No, I was blinded by the night\n[02:04.080]We'll go home to some bar\n[02:07.000]Cause home's too far\n[02:09.170]Is it too late to find out\n[02:11.030]Who we really are?\n[02:17.670]As we slip away with time\n[02:24.940]I see it clearly now\n[02:26.970]How my glass is full\n[02:29.170]There ain't no living without\n[02:32.440]With my life so dull\n[02:37.020](Or so I thought\n[02:41.540]On an empty night)\n[02:44.730]Every star so unaware of dark\n[02:49.330]Their surroundings are\n[02:51.320]I wasn't looking for the light\n[02:58.450]No, I was blinded by the night\n`
-  },
-  {
-    id: 5,
     title: "Supergirl",
     src: "/mp3/Supergirl.mp3",
     lightCues: [
@@ -268,7 +239,7 @@ const songList = [
     lrc: `[00:02.70]You can tell by the way\n[00:06.03]She walks that she's my girl\n[00:10.61]You can tell by the way\n[00:13.86]She talks, she rules the world\n[00:18.49]You can see in her eyes\n[00:21.53]That no one is her chain\n[00:26.67]She's my girl, my supergirl\n[00:34.39]And then she'd say, "It's okay\n[00:38.18]I got lost on the way\n[00:41.76]But I'm a supergirl\n[00:45.14]And supergirls don't cry"\n[00:50.07]And then she'd say, "It's alright\n[00:53.71]I got home late last night\n[00:57.20]But I'm a supergirl\n[01:00.83]And supergirls just fly"\n[01:16.30](And supergirls don't cry")\n[01:21.82]And then she'd say, "It's alright\n[01:25.76]I got home late last night\n[01:29.00]But I'm a supergirl\n[01:32.49]And supergirls just fly"\n[01:37.49]And then she'd say\n[01:40.37]That nothing can go wrong\n[01:45.40]When you're in love\n[01:49.28]What can go wrong?\n[01:53.17]Then she'd laugh\n[01:56.06]The night time into day\n[02:01.04]Pushing her fear further along\n[02:08.81]And then she'd say, "It's okay\n[02:12.73]I got lost on the way\n[02:15.83]But I'm a supergirl\n[02:19.56](And supergirls don't cry")\n[02:24.43]And then she'd shout down the line\n[02:28.36]Tell me she's got no more time\n[02:31.70]'Cause she's a supergirl\n[02:35.57]And supergirls don't hide\n[02:40.35]And then she'd scream in my face\n[02:44.03]Tell me to leave, leave this place\n[02:47.72]'Cause she's a supergirl\n[02:51.15]And supergirls just fly\n[02:55.65]Yes, she's a supergirl, a supergirl\n[03:03.97]She's sewing seeds, she's burning trees\n[03:07.90]She's sewing seeds, she's burning trees\n[03:11.43]she's a supergirl, a supergirl\n[03:19.60]A supergirl, my supergirl\n[03:26.92]\n`
   },
   {
-    id: 6,
+    id: 3,
     title: "Sound Of Silence",
     src: "/mp3/Sound Of Silence.mp3",
     lightCues: [
@@ -276,16 +247,6 @@ const songList = [
       { time: 12.8, action: 'off' } 
     ],
     lrc: `[00:59.500]Hello darkness, my old friend\n[01:03.900]I've come to talk with you again\n[01:09.030]Because a vision softly creeping\n[01:14.700]Left its seeds while I was sleeping\n[01:19.600]And the vision that was planted in my brain\n[01:27.500]Still remains\n[01:29.900]Within the sound of silence\n[01:36.100]In restless dreams I walked alone\n[01:41.600]Narrow streets of cobblestone\n[01:46.800]'Neath the halo of a street lamp\n[01:51.800]I turned my collar to the cold and damp\n[01:56.900]When my eyes were stabbed by the flash of a neon light\n[02:04.000]That split the night\n[02:06.700]And touched the sound of silence\n[02:15.000]\n[02:49.900]And in the naked light I saw\n[02:55.700]Ten thousand people, maybe more\n[03:00.200]People talking without speaking\n[03:05.700]People hearing without listening\n[03:11.050]People writing songs that voices never share\n[03:18.050]And no one dare\n[03:20.950]Disturb the sound of silence\n[03:26.900]\n[03:27.000]"Fools" said I, "You do not know\n[03:31.980]Silence like a cancer grows\n[03:37.850]Hear my words that I might teach you\n[03:42.700]Take my arms that I might reach to you"\n[03:47.700]But my words like silent raindrops fell\n[03:57.900]And echoed in the wells of silence\n[04:04.000]\n[04:04.500]Hmmm..Hmmm..Hmmm..Hmmm..\n[04:10.000]Hmmm..Hmmm..Hmmm..\n[04:14.000]Hmmm..Hmmm..Hmmm..Hmmm..Hmm..Hmm..Hmm..\n[04:21.300]Hmmm..Hmmm..Hmmm..\n[04:28.000]Hmmm..Hmmm..Hmmm..Hmmm..\n[04:34.900]Within the sound of silence\n[04:43.000]\n`
-  },
-  {
-    id: 7,
-    title: "Alone",
-    src: "/mp3/Alone.mp3",
-    lightCues: [
-      { time: 2.8, action: 'scattered' },
-      { time: 12.8, action: 'off' }
-    ],
-    lrc: `[00:02.42]Lost in your mind\n[00:08.97]I wanna know\n[00:11.73]Am I losing my mind\n[00:18.76]Never let me go\n[00:20.05]\n[00:20.87]If this night is not forever\n[00:24.28]At least we are together\n[00:26.73]I know I'm not alone\n[00:29.28]I know I'm not alone\n[00:31.55]\n[00:32.06]Anywhere, whenever\n[00:34.23]Apart but still together\n[00:36.69]I know I'm not alone\n[00:39.15]I know I'm not alone\n[00:49.12]I know I'm not alone\n[00:58.98]I know I'm not alone\n[01:01.95]\n[01:04.27]Unconscious mind\n[01:10.85]I'm wide awake\n[01:13.42]Wanna feel one last time\n[01:20.57]Take my pain away\n[01:22.10]\n[01:32.57]If this night is not forever\n[01:36.04]At least we are together\n[01:38.55]I know I'm not alone\n[01:40.96]I know I'm not alone\n[01:43.04]\n[01:43.78]Anywhere, whenever\n[01:45.94]Apart but still together\n[01:48.42]I know I'm not alone\n[01:50.85]I know I'm not alone\n[02:00.89]I know I'm not alone\n[02:10.68]I know I'm not alone\n[02:13.78]\n[02:15.00]I'm not alone, I'm not alone\n[02:19.95]I'm not alone, I know I'm not alone\n[02:24.95]I'm not alone, I'm not alone\n[02:29.82]I'm not alone, I know I'm not alone\n`
   }
 ];
 
