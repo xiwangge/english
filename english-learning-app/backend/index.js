@@ -575,13 +575,20 @@ app.post('/api/loginWithVerificationCode', async (req, res) => {
     let city = '';
     try {
       const data = searcher.search(ip);
-      console.log(data);
-      // 返回格式通常为: 中国|0|江苏省|南京市|电信
-      const city = data ? data.split('|')[3] : '未知';
-      // data 是 { region: "中国|0|...", ioCount: 1 }
-      // const city = data.region.split('|')[3];
+      console.log('ip2region search result:', data);
+      // data 可能是字符串也可能是对象，取决于库的版本
+      // 这里的 split 报错是因为 data 可能不是字符串
+      let region = '';
+      if (typeof data === 'string') {
+        region = data;
+      } else if (data && typeof data.region === 'string') {
+        region = data.region;
+      }
+
+      city = region ? (region.split('|')[3] || '未知') : '未知';
     } catch (e) {
-      console.log(e);
+      console.log('ip2region search error:', e);
+      city = '未知';
     }
 
     // 创建新用户
@@ -612,8 +619,18 @@ app.post('/api/loginWithVerificationCode', async (req, res) => {
       }
     }
 
-    // 生成 JWT
-    const token = jwt.sign({ userId: user._id }, process.env.token_secretKey, { expiresIn: config.expiresIn });
+    // 生成新的会话 ID 并更新用户信息
+    const newSessionId = uuidv4();
+    user.activeSessionId = newSessionId;
+    user.lastLoginIP = emailVerification.ipAddress;
+    await user.save();
+
+    // 生成 JWT (包含 sessionId 以匹配 auth 中间件的验证需求)
+    const token = jwt.sign(
+      { userId: user._id, sessionId: newSessionId },
+      process.env.token_secretKey,
+      { expiresIn: config.expiresIn }
+    );
 
     // 标记 EmailVerification 记录为已使用
     emailVerification.used = true;

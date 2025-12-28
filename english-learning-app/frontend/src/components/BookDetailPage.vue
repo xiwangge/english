@@ -144,7 +144,7 @@ async function addToMyBooks() {
   }
   
   try {
-    const response = await fetch('/api/userBook/add', {
+    const response = await fetch('/api/userBook/create', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

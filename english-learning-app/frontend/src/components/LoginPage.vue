@@ -195,7 +195,7 @@ async function handleLoginClick() {
     const data = await response.json();
     if (data.token) {
       localStorage.setItem('token', data.token);
-      window.location.href = '/index';
+      window.location.href = '/';
     } else {
       toast.error(data.message);
     }

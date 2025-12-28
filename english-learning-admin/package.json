@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "upload:cos": "node upload_to_cos.js"
   },
   "dependencies": {
     "@english-learning/common": "file:../packages/common",
