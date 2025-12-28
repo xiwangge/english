@@ -16,7 +16,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const router = express.Router();
 
-const assetsUrl = 'https://www.xuebubu.com/mp3/';
+const assetsUrl = 'https://assets.xuebubu.com/mp3/';
 const createWordMp3 = 'http://43.173.248.180:3000/synthesize/word';
 const createSentenceMp3 = 'http://43.173.248.180:3000/synthesize/sentence';
 
@@ -429,7 +429,7 @@ router.post('/book/batchUpdateWordsHybrid', async (req, res) => {
                             body: JSON.stringify({ word: word.text })
                         });
                         // 如果成功，则设置 URL
-                        word.speakUrl = assetsUrl + '/word' + word.text + '.mp3';
+                        word.speakUrl = assetsUrl + 'word/' + word.text + '.mp3';
                     } catch (ttsError) {
                         console.error(`TTS generation failed for word "${word.text}":`, ttsError);
                         word.speakUrl = 'N/A'; // TTS 失败，标记为 N/A

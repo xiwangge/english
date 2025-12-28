@@ -8,6 +8,15 @@ export const userStore = reactive({
     // 可以根据需要添加更多用户信息字段
   },
   theme: localStorage.getItem('theme') || 'light', // 'light' or 'dark'
+  showLoginModal: false,
+
+  triggerLoginModal() {
+    this.showLoginModal = true;
+  },
+
+  closeLoginModal() {
+    this.showLoginModal = false;
+  },
 
   // 设置用户信息
   setUser(userData) {

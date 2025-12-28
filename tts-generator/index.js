@@ -2,6 +2,7 @@
 const { TextToSpeechClient } = require('@google-cloud/text-to-speech');
 const fs = require('fs');
 const util = require('util');
+const path = require('path');
 
 // Import the list of texts to synthesize from texts.json
 // Note: This file must exist in the same directory.
@@ -76,8 +77,19 @@ async function synthesizeSpeech(text, filename, languageCode, voiceName) {
         // Call the API
         const [response] = await ttsClient.synthesizeSpeech(request);
 
-        // Write the Base64 encoded audio content to a local file
-        const outputPath = `${OUTPUT_DIR}/${filename}.mp3`;
+        // --- 核心修正开始 ---
+        // 1. 使用 path.join 安全地拼接路径
+        const outputPath = path.join(OUTPUT_DIR, `${filename}.mp3`);
+        
+        // 2. 获取目标文件所在的文件夹路径 (例如: audio_output/word)
+        const targetDir = path.dirname(outputPath);
+
+        // 3. 如果文件夹不存在，则递归创建它
+        if (!fs.existsSync(targetDir)) {
+            fs.mkdirSync(targetDir, { recursive: true });
+            console.log(`Created directory: ${targetDir}`);
+        }
+        // --- 核心修正结束 ---
         
         // The audioContent is returned as a Buffer/Base64, 'binary' encoding handles it correctly
         await writeFile(outputPath, response.audioContent, 'binary');

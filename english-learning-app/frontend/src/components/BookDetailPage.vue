@@ -68,6 +68,8 @@
     </div>
 
   </div>
+
+  <!-- 新增：跳转国际站登录提示模态框 -->
 </template>
   
 <script setup>
@@ -137,8 +139,7 @@ const updateHeaderColor = () => {
 async function addToMyBooks() {
   const token = localStorage.getItem('token');
   if (!token) {
-    toast.error('请先登录');
-    router.push('/login');
+    userStore.triggerLoginModal();
     return;
   }
   
@@ -185,13 +186,14 @@ onMounted(async () => {
   updateHeaderColor(); // 初始化 Header 颜色
 
   const { id: bookId } = route.params;
-  const { isSubscribed } = route.query;
-  const token = localStorage.getItem('token');
-
-  if (!bookId || !token) {
-    console.error('Missing bookId or token');
+  
+  if (!bookId) {
+    console.error('Missing bookId');
     return;
   }
+
+  const { isSubscribed } = route.query;
+  const token = localStorage.getItem('token');
 
   try {
     const isSubscribedBool = isSubscribed === 'true';
@@ -222,6 +224,7 @@ onMounted(async () => {
 onUnmounted(() => {
     if (setHeaderBgColor) setHeaderBgColor('transparent');
 });
+
 </script>
   
 <style scoped>

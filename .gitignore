@@ -19,6 +19,7 @@ tts-generator/google.json
 node_modules/
 dist/
 .parcel-cache/
+*.tar.gz
 
 # Media files
 english-learning-app/frontend/public/mp3/

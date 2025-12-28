@@ -100,7 +100,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref, computed, provide } from 'vue';
+import { onMounted, ref, computed, provide, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { userStore } from '../store/user.js';
 import { useToast } from 'vue-toastification';
@@ -111,6 +111,14 @@ const bookButton = ref(null);
 
 const activeMenu = ref('home');
 const showRedirectLoginModal = ref(false);
+
+watch(() => userStore.showLoginModal, (newValue) => {
+  if (newValue) {
+    showRedirectLoginModal.value = true;
+    userStore.closeLoginModal();
+  }
+});
+
 const isLoggedIn = computed(() => !!localStorage.getItem('token'));
 const showQRCode = ref(false); // 控制二维码显示
 
