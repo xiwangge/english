@@ -7,20 +7,8 @@
           <div class="membership-section">
             <h2 class="section-title">开通会员，畅享特权</h2>
             <div class="membership-plans">
-              <div class="card membership-card">
-                <div class="plan-header">
-                  <h3 class="plan-title">月度会员</h3>
-                  <p class="plan-price">¥{{ getPrice('monthly') }}</p>
-                </div>
-                <ul class="plan-features">
-                  <li>所有课程免费学</li>
-                  <li>解锁全部头像</li>
-                  <li>专属学习报告</li>
-                </ul>
-                <button class="btn btn-primary" @click="purchaseMembership('monthly')">立即开通</button>
-              </div>
               <div class="card membership-card popular">
-                 <span class="popular-badge">超值推荐</span>
+                 <span class="popular-badge">8折优惠</span>
                 <div class="plan-header">
                   <h3 class="plan-title">季度会员</h3>
                   <p class="plan-price">¥{{ getPrice('quarterly') }}</p>
@@ -34,6 +22,7 @@
                 <button class="btn btn-primary" @click="purchaseMembership('quarterly')">立即开通</button>
               </div>
               <div class="card membership-card">
+                 <span class="discount-badge">8折优惠</span>
                 <div class="plan-header">
                   <h3 class="plan-title">年度会员</h3>
                   <p class="plan-price">¥{{ getPrice('yearly') }}</p>
@@ -46,6 +35,20 @@
                   <li>专属客服支持</li>
                 </ul>
                 <button class="btn btn-primary" @click="purchaseMembership('yearly')">立即开通</button>
+              </div>
+              <div class="card membership-card lifetime">
+                <div class="plan-header">
+                  <h3 class="plan-title">终身会员</h3>
+                  <p class="plan-price">¥{{ getPrice('lifetime') }}</p>
+                </div>
+                <ul class="plan-features">
+                  <li>永久无限制使用</li>
+                  <li>未来所有新功能免费</li>
+                  <li>极致学习数据分析</li>
+                  <li>专属终身勋章标识</li>
+                  <li>顶级VIP售后通道</li>
+                </ul>
+                <button class="btn btn-primary" @click="purchaseMembership('lifetime')">立即开通</button>
               </div>
               
             </div>
@@ -461,8 +464,20 @@ async function confirmPayment() {
   box-shadow: 0 0 0 1px var(--primary-color);
 }
 
-.popular-badge {
+.popular-badge, .discount-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background-color: var(--primary-color);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
   border-bottom-left-radius: var(--radius-default);
+}
+
+.discount-badge {
+    background-color: #ef4444; /* Red for discount */
 }
 
 .plan-header {

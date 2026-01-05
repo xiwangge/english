@@ -151,14 +151,20 @@ mongoose.connect(process.env.mongoURI, {
         // --- 自动初始化/更新产品 Price ID ---
         try {
             const updates = [
-                { type: 'monthly', stripePriceId: 'price_1SlquVRv2dHZgmnc5kWaEPBl' },
-                { type: 'quarterly', stripePriceId: 'price_1SlsE4Rv2dHZgmncqfZRKZ5f' },
-                { type: 'yearly', stripePriceId: 'price_1Slr4pRv2dHZgmncWDchY4p4' }
+                { type: 'lifetime', name: '终身会员', stripePriceId: 'price_1SlsHzRv2dHZgmncPq8IzS1W' },
+                { type: 'quarterly', name: '季度会员', stripePriceId: 'price_1SlsE4Rv2dHZgmncqfZRKZ5f' },
+                { type: 'yearly', name: '年度会员', stripePriceId: 'price_1Slr4pRv2dHZgmncWDchY4p4' }
             ];
             for (const item of updates) {
-                await Product.findOneAndUpdate({ type: item.type }, { stripePriceId: item.stripePriceId });
+                await Product.findOneAndUpdate(
+                    { type: item.type },
+                    { name: item.name, stripePriceId: item.stripePriceId },
+                    { upsert: true } // 确保如果不存在就创建
+                );
             }
-            console.log('Stripe Price IDs initialized/updated.');
+            // 移除月度会员（如果存在）
+            await Product.deleteOne({ type: 'monthly' });
+            console.log('Stripe Price IDs and products initialized/updated.');
         } catch (e) {
             console.error('Failed to initialize Stripe Price IDs:', e);
         }
