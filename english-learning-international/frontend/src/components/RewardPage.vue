@@ -101,10 +101,11 @@
             <div class="card wallet-card">
               <div class="payment-info-box">
                 <div v-if="userStore.user.paymentInfo && userStore.user.paymentInfo.method !== 'none'" class="info-details">
-                   <p><strong>收款方式：</strong> {{ userStore.user.paymentInfo.method === 'bank' ? '银行卡' : '微信支付' }}</p>
+                   <p><strong>收款方式：</strong> {{ userStore.user.paymentInfo.method === 'bank' ? '银行卡' : '支付宝' }}</p>
                    <p v-if="userStore.user.paymentInfo.method === 'bank'"><strong>账户名：</strong> {{ userStore.user.paymentInfo.accountName }}</p>
                    <p v-if="userStore.user.paymentInfo.method === 'bank'"><strong>卡号：</strong> {{ userStore.user.paymentInfo.cardNumber }}</p>
-                   <p v-if="userStore.user.paymentInfo.method === 'wechat'"><strong>微信号/姓名：</strong> {{ userStore.user.paymentInfo.accountName }}</p>
+                   <p v-if="userStore.user.paymentInfo.method === 'alipay'"><strong>支付宝账号：</strong> {{ userStore.user.paymentInfo.alipayAccount }}</p>
+                   <p v-if="userStore.user.paymentInfo.method === 'alipay'"><strong>真实姓名：</strong> {{ userStore.user.paymentInfo.accountName }}</p>
                 </div>
                 <p v-else class="text-muted">尚未设置收款信息</p>
                 <button class="btn btn-secondary btn-sm" @click="openPaymentInfoModal">
@@ -217,7 +218,7 @@
             <label>收款方式</label>
             <select v-model="pForm.method" class="form-input">
               <option value="bank">银行卡</option>
-              <option value="wechat">微信支付</option>
+              <option value="alipay">支付宝</option>
             </select>
           </div>
           <template v-if="pForm.method === 'bank'">
@@ -236,12 +237,12 @@
           </template>
           <template v-else>
             <div class="form-group">
-              <label>姓名/账号</label>
-              <input type="text" v-model="pForm.accountName" class="form-input" placeholder="请输入微信实名或账号">
+              <label>支付宝账号</label>
+              <input type="text" v-model="pForm.alipayAccount" class="form-input" placeholder="请输入邮箱或手机号">
             </div>
             <div class="form-group">
-              <label>收款码 URL (可选)</label>
-              <input type="text" v-model="pForm.wechatQRCode" class="form-input" placeholder="请输入图片链接或联系客服发送">
+              <label>真实姓名</label>
+              <input type="text" v-model="pForm.accountName" class="form-input" placeholder="请输入账号对应的实名">
             </div>
           </template>
 
@@ -313,7 +314,7 @@ const pForm = ref({
     accountName: '',
     bankName: '',
     cardNumber: '',
-    wechatQRCode: '',
+    alipayAccount: '',
     code: ''
 });
 const counting = ref(false);

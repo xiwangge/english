@@ -9,7 +9,7 @@ const withdrawalRequestSchema = new mongoose.Schema({
         accountName: String,
         bankName: String,
         cardNumber: String,
-        wechatQRCode: String
+        alipayAccount: String
     },
     adminNotes: String, // 管理员备注（如有驳回原因等）
     processedAt: Date

@@ -22,7 +22,7 @@ const userSchema = new mongoose.Schema({
     accountName: { type: String }, // 开户姓名
     bankName: { type: String }, // 银行名称
     cardNumber: { type: String }, // 银行卡号
-    wechatQRCode: { type: String } // 微信收款码 URL
+    alipayAccount: { type: String } // 支付宝账号或手机号
   },
   group: { type: mongoose.Schema.Types.ObjectId, ref: 'Group', default: null }, // 所属群组
   activeSessionId: { type: String, default: null }, // 当前有效的会话ID

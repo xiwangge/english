@@ -163,7 +163,7 @@
                 const tr = document.createElement('tr');
                 const details = item.paymentMethod === 'bank'
                     ? `银行：${item.paymentDetails.bankName}<br>账号：${item.paymentDetails.cardNumber}<br>持卡人：${item.paymentDetails.accountName}`
-                    : `微信名：${item.paymentDetails.accountName}${item.paymentDetails.wechatQRCode ? '<br><a href="' + item.paymentDetails.wechatQRCode + '" target="_blank">查看二维码</a>' : ''}`;
+                    : `支付宝：${item.paymentDetails.alipayAccount}<br>实名：${item.paymentDetails.accountName}`;
 
                 tr.innerHTML = `
                     <td>

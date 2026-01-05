@@ -976,7 +976,7 @@ app.post('/api/reward/update-payment-info', auth, async (req, res) => {
             accountName,
             bankName,
             cardNumber,
-            wechatQRCode
+            alipayAccount
         };
         await user.save();
         await EmailVerification.deleteOne({ _id: verification._id });
@@ -1009,7 +1009,7 @@ app.post('/api/reward/withdraw', auth, async (req, res) => {
                 accountName: user.paymentInfo.accountName,
                 bankName: user.paymentInfo.bankName,
                 cardNumber: user.paymentInfo.cardNumber,
-                wechatQRCode: user.paymentInfo.wechatQRCode
+                alipayAccount: user.paymentInfo.alipayAccount
             }
         });
 
