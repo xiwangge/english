@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <title>单词管理 - 管理后台</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 2rem;
+            background-color: #f9fafb;
+            color: #111827;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+        }
+
+        .card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        h1 {
+            color: #1f2937;
+            margin-bottom: 1.5rem;
+        }
+
+        .search-area {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            padding: 10px 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            flex-grow: 1;
+            font-size: 1rem;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #e59f42;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 1rem;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background-color: #d88f32;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 14px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        th {
+            background-color: #f3f4f6;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .edit-input {
+            width: 100%;
+            padding: 6px 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        .action-btn {
+            background-color: #10b981;
+            padding: 6px 14px;
+            font-size: 0.9rem;
+        }
+
+        .action-btn:hover {
+            background-color: #059669;
+        }
+
+        .nav-link {
+            margin-bottom: 1rem;
+            display: inline-block;
+            color: #6366f1;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .nav-link:hover {
+            text-decoration: underline;
+        }
+
+        .word-text {
+            font-size: 1.1rem;
+            color: #111827;
+        }
+
+        .status-msg {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        .success {
+            color: #059669;
+        }
+
+        .error {
+            color: #dc2626;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <a href="admin.html" class="nav-link">← 返回管理首页</a>
+        <h1>单词管理 (纠错/补全)</h1>
+
+        <div class="card">
+            <div class="search-area">
+                <input type="text" id="wordQuery" placeholder="输入英文单词搜索 (支持模糊搜索)..."
+                    onkeydown="if(event.keyCode==13) searchWords()">
+                <button onclick="searchWords()">搜索单词</button>
+            </div>
+
+            <div id="resultsArea" style="display: none;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 20%;">英文原文</th>
+                            <th style="width: 25%;">音标</th>
+                            <th style="width: 40%;">中文翻译</th>
+                            <th style="width: 15%;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="wordsTableBody">
+                    </tbody>
+                </table>
+            </div>
+            <div id="emptyArea" style="display: none; text-align: center; padding: 2rem; color: #6b7280;">
+                未找到相关单词，请尝试缩小搜索范围。
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 简单的管理认证检查
+        const adminToken = localStorage.getItem('adminToken') || 'admin';
+
+        async function searchWords() {
+            const queryField = document.getElementById('wordQuery');
+            const query = queryField.value.trim();
+            if (!query) return;
+
+            const resultsArea = document.getElementById('resultsArea');
+            const emptyArea = document.getElementById('emptyArea');
+            const tbody = document.getElementById('wordsTableBody');
+
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">搜索中...</td></tr>';
+            resultsArea.style.display = 'block';
+            emptyArea.style.display = 'none';
+
+            try {
+                const response = await fetch(`/api/words/search?query=${encodeURIComponent(query)}`, {
+                    headers: { 'Authorization': adminToken }
+                });
+                const words = await response.json();
+
+                if (words.length === 0) {
+                    resultsArea.style.display = 'none';
+                    emptyArea.style.display = 'block';
+                    return;
+                }
+
+                renderWords(words);
+            } catch (error) {
+                console.error(error);
+                alert('搜索请求失败，请检查网络或刷新页面');
+            }
+        }
+
+        function renderWords(words) {
+            const tbody = document.getElementById('wordsTableBody');
+            tbody.innerHTML = '';
+            words.forEach(word => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="word-text"><strong>${word.text}</strong></td>
+                    <td><input type="text" class="edit-input" id="phonetic-${word._id}" value="${word.phonetic || ''}" placeholder="音标"></td>
+                    <td><input type="text" class="edit-input" id="chinese-${word._id}" value="${word.chinese || ''}" placeholder="中文含义"></td>
+                    <td>
+                        <button class="action-btn" id="btn-${word._id}" onclick="updateWord('${word._id}')">保存</button>
+                        <span id="msg-${word._id}" class="status-msg"></span>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function updateWord(id) {
+            const chinese = document.getElementById(`chinese-${id}`).value;
+            const phonetic = document.getElementById(`phonetic-${id}`).value;
+            const btn = document.getElementById(`btn-${id}`);
+            const msg = document.getElementById(`msg-${id}`);
+
+            btn.disabled = true;
+            btn.innerText = '保存中...';
+            msg.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/words/update', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': adminToken,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ id, chinese, phonetic })
+                });
+
+                if (response.ok) {
+                    msg.innerText = '已保存';
+                    msg.className = 'status-msg success';
+                    msg.style.display = 'inline';
+                    setTimeout(() => { msg.style.display = 'none'; }, 2000);
+                } else {
+                    msg.innerText = '错误';
+                    msg.className = 'status-msg error';
+                    msg.style.display = 'inline';
+                }
+            } catch (error) {
+                alert('网络错误');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = '保存';
+            }
+        }
+    </script>
+</body>
+
+</html>

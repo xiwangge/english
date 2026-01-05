@@ -712,8 +712,48 @@ router.get('/orders', async (req, res) => {
         res.status(500).json({ message: '服务器获取订单失败' });
     }
 });
+// --- 单词管理 API ---
 
-export default router;
+// 搜索单词
+router.get('/words/search', async (req, res) => {
+    try {
+        const token = req.headers.authorization;
+        if (token !== 'admin') return res.status(403).json({ message: '无权访问' });
+
+        const { query } = req.query;
+        if (!query) return res.json([]);
+
+        // 支持模糊搜索
+        const words = await Word.find({
+            text: { $regex: query, $options: 'i' }
+        }).limit(50);
+
+        res.status(200).json(words);
+    } catch (error) {
+        console.error('搜索单词失败:', error);
+        res.status(500).json({ message: '搜索单词失败' });
+    }
+});
+
+// 更新单词信息
+router.post('/words/update', async (req, res) => {
+    try {
+        const token = req.headers.authorization;
+        if (token !== 'admin') return res.status(403).json({ message: '无权访问' });
+
+        const { id, chinese, phonetic } = req.body;
+        if (!id) return res.status(400).json({ message: '缺少单词ID' });
+
+        const word = await Word.findByIdAndUpdate(id, { chinese, phonetic }, { new: true });
+
+        if (!word) return res.status(404).json({ message: '单词不存在' });
+        res.status(200).json(word);
+    } catch (error) {
+        console.error('更新单词失败:', error);
+        res.status(500).json({ message: '更新单词失败' });
+    }
+});
+
 // 获取看板统计数据
 router.get('/dashboard-stats', async (req, res) => {
     try {
@@ -806,3 +846,5 @@ router.post('/products/update', async (req, res) => {
         res.status(500).json({ message: '服务器更新产品价格失败' });
     }
 });
+
+export default router;
