@@ -12,6 +12,7 @@ import Word from '@english-learning/common/models/Word.js';
 import Product from '@english-learning/common/models/Product.js';
 import Order from '@english-learning/common/models/Order.js';
 import SystemConfig from '@english-learning/common/models/SystemConfig.js';
+import WithdrawalRequest from '@english-learning/common/models/WithdrawalRequest.js';
 import COS from 'cos-nodejs-sdk-v5';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -751,6 +752,70 @@ router.post('/words/update', async (req, res) => {
     } catch (error) {
         console.error('更新单词失败:', error);
         res.status(500).json({ message: '更新单词失败' });
+    }
+});
+
+// --- 提现管理 API ---
+
+// 获取提现申请列表
+router.get('/withdrawals', async (req, res) => {
+    try {
+        const token = req.headers.authorization;
+        if (token !== 'admin') return res.status(403).json({ message: '无权访问' });
+
+        const { status, query } = req.query;
+        let filter = {};
+        if (status) filter.status = status;
+
+        if (query) {
+            const users = await User.find({
+                $or: [
+                    { email: { $regex: query, $options: 'i' } },
+                    { nickname: { $regex: query, $options: 'i' } }
+                ]
+            }).select('_id');
+            filter.userId = { $in: users.map(u => u._id) };
+        }
+
+        const requests = await WithdrawalRequest.find(filter)
+            .populate('userId', 'nickname email balance')
+            .sort({ createdAt: -1 });
+
+        res.json(requests);
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ message: '获取提现申请失败' });
+    }
+});
+
+// 更新提现申请状态
+router.post('/withdrawals/update', async (req, res) => {
+    try {
+        const token = req.headers.authorization;
+        if (token !== 'admin') return res.status(403).json({ message: '无权访问' });
+
+        const { id, status, adminNotes } = req.body;
+        const request = await WithdrawalRequest.findById(id);
+        if (!request) return res.status(404).json({ message: '申请不存在' });
+
+        // 如果拒绝申请，返还余额
+        if (status === 'rejected' && request.status !== 'rejected' && request.status !== 'completed') {
+            const user = await User.findById(request.userId);
+            if (user) {
+                user.balance += request.amount;
+                await user.save();
+            }
+        }
+
+        request.status = status;
+        request.adminNotes = adminNotes;
+        request.processedAt = new Date();
+        await request.save();
+
+        res.json({ message: '状态已更新' });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ message: '更新失败' });
     }
 });
 

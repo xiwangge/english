@@ -11,7 +11,7 @@
                  <span class="popular-badge">8折优惠</span>
                 <div class="plan-header">
                   <h3 class="plan-title">季度会员</h3>
-                  <p class="plan-price">¥{{ getPrice('quarterly') }}</p>
+                  <p class="plan-price">£{{ getPrice('quarterly') }}</p>
                 </div>
                 <ul class="plan-features">
                   <li>所有课程免费学</li>
@@ -25,7 +25,7 @@
                  <span class="discount-badge">8折优惠</span>
                 <div class="plan-header">
                   <h3 class="plan-title">年度会员</h3>
-                  <p class="plan-price">¥{{ getPrice('yearly') }}</p>
+                  <p class="plan-price">£{{ getPrice('yearly') }}</p>
                 </div>
                 <ul class="plan-features">
                   <li>所有课程免费学</li>
@@ -36,17 +36,19 @@
                 </ul>
                 <button class="btn btn-primary" @click="purchaseMembership('yearly')">立即开通</button>
               </div>
-              <div class="card membership-card lifetime">
+              <div class="card membership-card partner">
+                <span class="limit-badge">仅剩 499 个名额</span>
                 <div class="plan-header">
-                  <h3 class="plan-title">终身会员</h3>
-                  <p class="plan-price">¥{{ getPrice('lifetime') }}</p>
+                  <h3 class="plan-title">合伙人会员</h3>
+                  <p class="plan-price">£{{ getPrice('lifetime') }}</p>
                 </div>
                 <ul class="plan-features">
+                  <li><strong>只有499个名额</strong></li>
                   <li>永久无限制使用</li>
                   <li>未来所有新功能免费</li>
                   <li>极致学习数据分析</li>
-                  <li>专属终身勋章标识</li>
                   <li>顶级VIP售后通道</li>
+                  <li><strong>高比例分享返利</strong></li>
                 </ul>
                 <button class="btn btn-primary" @click="purchaseMembership('lifetime')">立即开通</button>
               </div>
@@ -86,18 +88,52 @@
                   <span class="stat-label">已邀请人数</span>
                 </div>
                 <div class="stat-item">
-                  <span class="stat-value">{{ rewardDays }}</span>
-                  <span class="stat-label">获得奖励(天)</span>
+                  <span class="stat-value">£{{ (userStore.user.balance || 0).toFixed(2) }}</span>
+                  <span class="stat-label">奖励余额</span>
                 </div>
               </div>
             </div>
           </div>
 
+          <div class="wallet-section">
+            <!-- ... wallet card ... -->
+            <h2 class="section-title">我的钱包</h2>
+            <div class="card wallet-card">
+              <div class="payment-info-box">
+                <div v-if="userStore.user.paymentInfo && userStore.user.paymentInfo.method !== 'none'" class="info-details">
+                   <p><strong>收款方式：</strong> {{ userStore.user.paymentInfo.method === 'bank' ? '银行卡' : '微信支付' }}</p>
+                   <p v-if="userStore.user.paymentInfo.method === 'bank'"><strong>账户名：</strong> {{ userStore.user.paymentInfo.accountName }}</p>
+                   <p v-if="userStore.user.paymentInfo.method === 'bank'"><strong>卡号：</strong> {{ userStore.user.paymentInfo.cardNumber }}</p>
+                   <p v-if="userStore.user.paymentInfo.method === 'wechat'"><strong>微信号/姓名：</strong> {{ userStore.user.paymentInfo.accountName }}</p>
+                </div>
+                <p v-else class="text-muted">尚未设置收款信息</p>
+                <button class="btn btn-secondary btn-sm" @click="openPaymentInfoModal">
+                  {{ (userStore.user.paymentInfo && userStore.user.paymentInfo.method !== 'none') ? '更改信息' : '设置信息' }}
+                </button>
+              </div>
+              <div class="withdrawal-actions">
+                 <button class="btn btn-primary w-full" @click="openWithdrawModal">申请提现</button>
+              </div>
+            </div>
+            
+            <div class="withdrawal-history mt-6" v-if="withdrawals.length">
+                <h3 class="text-sm font-bold mb-2">提现记录</h3>
+                <div class="history-list">
+                    <div v-for="w in withdrawals" :key="w._id" class="history-item">
+                        <div class="history-info">
+                            <span class="history-date">{{ new Date(w.createdAt).toLocaleDateString() }}</span>
+                            <span class="history-amount">£{{ w.amount.toFixed(2) }}</span>
+                        </div>
+                        <div class="history-status" :class="w.status">
+                            {{ w.status === 'pending' ? '处理中' : w.status === 'completed' ? '已到账' : '已拒绝' }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+          </div>
+
           <div class="footer-actions">
-            <button class="btn btn-primary btn-large">
-              <span class="btn-text">申请提现</span>
-            </button>
-            <a class="rules-link" href="#">查看推广规则</a>
+            <a class="rules-link" @click="showRulesModal = true">查看推广规则</a>
           </div>
 
         </div>
@@ -141,6 +177,108 @@
       </div>
     </div>
 
+    <div v-if="showRulesModal" class="modal-overlay" @click.self="showRulesModal = false">
+      <!-- ... existed rules modal ... -->
+      <div class="modal-content rules-modal">
+        <h3 class="modal-title">推广奖励规则</h3>
+        <div class="rules-content">
+            <div class="rule-item">
+                <span class="rule-icon">👤</span>
+                <div class="rule-text">
+                    <h4>普通用户</h4>
+                    <p>分享好友订阅产品，您可获得支付金额 <span class="highlight">6%</span> 的现金奖励。</p>
+                </div>
+            </div>
+            <div class="rule-item">
+                <span class="rule-icon">💎</span>
+                <div class="rule-text">
+                    <h4>合伙人会员</h4>
+                    <p>分享好友订阅产品，您可获得支付金额 <span class="highlight">10%</span> 的现金奖励。</p>
+                </div>
+            </div>
+            <div class="rule-item">
+                <span class="rule-icon">⏳</span>
+                <div class="rule-text">
+                    <h4>提现说明</h4>
+                    <p>申请提现后，资金将在 <span class="highlight">T+2</span> 个工作日内处理并原路返回或转账。</p>
+                </div>
+            </div>
+        </div>
+        <button class="btn btn-primary mt-6 w-full" @click="showRulesModal = false">我知道了</button>
+      </div>
+    </div>
+
+    <!-- 收款信息设置模态框 -->
+    <div v-if="showPaymentModal" class="modal-overlay" @click.self="showPaymentModal = false">
+      <div class="modal-content payment-modal">
+        <h3 class="modal-title">设置收款信息</h3>
+        <div class="payment-form">
+          <div class="form-group">
+            <label>收款方式</label>
+            <select v-model="pForm.method" class="form-input">
+              <option value="bank">银行卡</option>
+              <option value="wechat">微信支付</option>
+            </select>
+          </div>
+          <template v-if="pForm.method === 'bank'">
+            <div class="form-group">
+              <label>开户姓名</label>
+              <input type="text" v-model="pForm.accountName" class="form-input" placeholder="请输入姓名">
+            </div>
+            <div class="form-group">
+              <label>银行名称</label>
+              <input type="text" v-model="pForm.bankName" class="form-input" placeholder="例如：招商银行">
+            </div>
+            <div class="form-group">
+              <label>卡号</label>
+              <input type="text" v-model="pForm.cardNumber" class="form-input" placeholder="请输入卡号">
+            </div>
+          </template>
+          <template v-else>
+            <div class="form-group">
+              <label>姓名/账号</label>
+              <input type="text" v-model="pForm.accountName" class="form-input" placeholder="请输入微信实名或账号">
+            </div>
+            <div class="form-group">
+              <label>收款码 URL (可选)</label>
+              <input type="text" v-model="pForm.wechatQRCode" class="form-input" placeholder="请输入图片链接或联系客服发送">
+            </div>
+          </template>
+
+          <div class="form-group">
+            <label>邮箱验证码</label>
+            <div class="code-input-group">
+              <input type="text" v-model="pForm.code" class="form-input" placeholder="请输入验证码">
+              <button class="btn btn-sm btn-secondary" :disabled="counting" @click="sendPaymentCode">
+                {{ counting ? `${count}s` : '获取' }}
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-actions mt-6">
+          <button class="btn btn-secondary" @click="showPaymentModal = false">取消</button>
+          <button class="btn btn-primary" @click="submitPaymentInfo">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 提现模态框 -->
+    <div v-if="showWithdrawModal" class="modal-overlay" @click.self="showWithdrawModal = false">
+      <div class="modal-content">
+        <h3 class="modal-title">申请提现</h3>
+        <p class="text-sm text-muted mb-4">当前余额: £{{ (userStore.user.balance || 0).toFixed(2) }}</p>
+        <div class="form-group text-left">
+          <label class="text-sm">提现金额 (£)</label>
+          <input type="number" v-model="withdrawAmount" class="form-input" :max="userStore.user.balance" min="1">
+        </div>
+        <p class="text-xs text-muted mt-2">提示：最低提现金额为 £1.00</p>
+        <div class="modal-actions mt-6">
+          <button class="btn btn-secondary" @click="showWithdrawModal = false">取消</button>
+          <button class="btn btn-primary" @click="submitWithdraw">确认提现</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -164,6 +302,23 @@ const selectedPlanName = ref('');
 const selectedPlanPrice = ref('');
 const qrCodeUrl = ref('');
 const products = ref([]);
+const showRulesModal = ref(false);
+const showWithdrawModal = ref(false);
+const withdrawAmount = ref(0);
+const withdrawals = ref([]);
+
+// 支付信息表单
+const pForm = ref({
+    method: 'bank',
+    accountName: '',
+    bankName: '',
+    cardNumber: '',
+    wechatQRCode: '',
+    code: ''
+});
+const counting = ref(false);
+const count = ref(60);
+let timer = null;
 
 // Dynamic header background color injection
 const setHeaderBgColor = inject('setHeaderBgColor');
@@ -202,6 +357,7 @@ onMounted(async () => {
     
     // Fetch stats (Mock data or real API)
     fetchUserInfo();
+    fetchWithdrawals();
   }
 });
 
@@ -330,12 +486,122 @@ function startPolling(orderNo) {
     }, 3000); // 每3秒查询一次
 }
 
+async function fetchWithdrawals() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/reward/withdrawals', {
+            headers: { 'Authorization': token }
+        });
+        if (response.ok) {
+            withdrawals.value = await response.json();
+        }
+    } catch (e) {
+        console.error('获取提现记录失败:', e);
+    }
+}
+
 function closeWechatPayModal() {
     if (pollingInterval) {
         clearInterval(pollingInterval);
         pollingInterval = null;
     }
     showWechatPayModal.value = false;
+}
+
+// 提现相关逻辑
+async function openWithdrawModal() {
+    if (!userStore.user.paymentInfo || userStore.user.paymentInfo.method === 'none') {
+        toast.warning('请先设置收款信息');
+        openPaymentInfoModal();
+        return;
+    }
+    withdrawAmount.value = Math.floor(userStore.user.balance || 0);
+    showWithdrawModal.value = true;
+}
+
+async function submitWithdraw() {
+    if (withdrawAmount.value < 1) {
+        toast.error('最低提现金额为 £1');
+        return;
+    }
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/reward/withdraw', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': token },
+            body: JSON.stringify({ amount: withdrawAmount.value })
+        });
+        if (response.ok) {
+            toast.success('提现申请成功！');
+            showWithdrawModal.value = false;
+            fetchUserInfo(); 
+        } else {
+            const err = await response.json();
+            toast.error(err.message || '提现失败');
+        }
+    } catch (e) {
+        toast.error('申请提现失败');
+    }
+}
+
+function openPaymentInfoModal() {
+    if (userStore.user.paymentInfo) {
+        pForm.value = { ...userStore.user.paymentInfo, code: '' };
+    }
+    showPaymentModal.value = true;
+}
+
+async function sendPaymentCode() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/reward/send-payment-code', {
+            method: 'POST',
+            headers: { 'Authorization': token }
+        });
+        if (response.ok) {
+            toast.success('验证码已发送');
+            startCount();
+        }
+    } catch (e) {
+        toast.error('发送失败');
+    }
+}
+
+function startCount() {
+    counting.value = true;
+    count.value = 60;
+    timer = setInterval(() => {
+        count.value--;
+        if (count.value <= 0) {
+            clearInterval(timer);
+            counting.value = false;
+        }
+    }, 1000);
+}
+
+async function submitPaymentInfo() {
+    if (!pForm.value.code) {
+        toast.error('请输入验证码');
+        return;
+    }
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/reward/update-payment-info', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': token },
+            body: JSON.stringify(pForm.value)
+        });
+        if (response.ok) {
+            toast.success('收款信息已更新');
+            showPaymentModal.value = false;
+            fetchUserInfo();
+        } else {
+            const err = await response.json();
+            toast.error(err.message || '更新失败');
+        }
+    } catch (e) {
+        toast.error('设置失败');
+    }
 }
 
 // 保留旧的 purchaseMembership 逻辑作为 confirmPayment 的一部分，以防万一
@@ -456,15 +722,21 @@ async function confirmPayment() {
 
 .membership-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  border-color: #ef4444; /* 悬停变为红色边框 */
+  box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.1);
 }
 
 .membership-card.popular {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 1px var(--primary-color);
+  border-color: var(--border-color); /* 默认不突出，等待点击或悬停 */
 }
 
-.popular-badge, .discount-badge {
+/* 即使是推荐卡片，悬停也变红 */
+.membership-card.popular:hover, 
+.membership-card.partner:hover {
+    border-color: #ef4444;
+}
+
+.popular-badge, .discount-badge, .limit-badge {
   position: absolute;
   top: 0;
   right: 0;
@@ -474,6 +746,12 @@ async function confirmPayment() {
   font-size: 0.75rem;
   font-weight: 700;
   border-bottom-left-radius: var(--radius-default);
+  z-index: 10;
+}
+
+.limit-badge {
+    background: linear-gradient(135deg, #1f2937, #4b5563);
+    color: #facc15; /* Gold text for partner */
 }
 
 .discount-badge {
@@ -545,8 +823,38 @@ async function confirmPayment() {
   border-radius: var(--radius-default);
   text-align: center;
   width: 90%;
-  max-width: 320px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  max-width: 360px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+/* 规则详情样式 */
+.rules-modal {
+    text-align: left;
+}
+.rules-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+.rule-item {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+}
+.rule-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+.rule-text h4 {
+    margin: 0 0 0.25rem 0;
+    color: var(--text-main);
+}
+.rule-text p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--text-body);
+    line-height: 1.5;
 }
 
 .modal-title {
@@ -741,5 +1049,104 @@ async function confirmPayment() {
 
 .rules-link:hover {
   color: var(--primary-color);
+}
+/* --- 钱包卡片 --- */
+.wallet-card {
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+.payment-info-box {
+    background: var(--bg-light);
+    padding: 1.5rem;
+    border-radius: var(--radius-default);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+.info-details p {
+    margin: 0.25rem 0;
+    font-size: 0.93rem;
+    color: var(--text-body);
+}
+
+/* --- 表单样式 --- */
+.payment-form {
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.form-group label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+.form-input {
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: white;
+    color: var(--text-main);
+    outline: none;
+}
+.dark .form-input {
+    background: #111827;
+}
+
+.code-input-group {
+    display: flex;
+    gap: 0.5rem;
+}
+.code-input-group .form-input {
+    flex: 1;
+}
+
+/* --- 提现记录 --- */
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.history-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.history-info {
+    display: flex;
+    flex-direction: column;
+}
+.history-date {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+.history-amount {
+    font-weight: 700;
+    color: var(--text-main);
+}
+.history-status {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+.history-status.pending { background: #fef3c7; color: #92400e; }
+.history-status.completed { background: #d1fae5; color: #065f46; }
+.history-status.rejected { background: #fee2e2; color: #991b1b; }
+
+.btn-sm {
+    padding: 0.4rem 1rem;
+    font-size: 0.75rem;
 }
 </style>

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <title>提现申请管理</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 2rem;
+            background: #f4f4f9;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .filter-bar {
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        th,
+        td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background: #eee;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-completed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-rejected {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .actions button {
+            padding: 6px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            border: none;
+            margin-right: 5px;
+        }
+
+        .btn-approve {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-reject {
+            background: #ef4444;
+            color: white;
+        }
+
+        .details-box {
+            font-size: 13px;
+            color: #666;
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+
+        input,
+        select {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>提现申请管理</h1>
+        <div class="filter-bar">
+            <input type="text" id="search-query" placeholder="搜索用户昵称/邮箱">
+            <select id="status-filter">
+                <option value="">全部状态</option>
+                <option value="pending">待处理</option>
+                <option value="completed">已完成</option>
+                <option value="rejected">已拒绝</option>
+            </select>
+            <button onclick="fetchWithdrawals()"
+                style="background:#007bff; color:white; border:none; padding:8px 16px; border-radius:4px; cursor:pointer;">查询</button>
+        </div>
+        <table id="withdrawal-table">
+            <thead>
+                <tr>
+                    <th>用户信息</th>
+                    <th>金额 (£)</th>
+                    <th>收款详情</th>
+                    <th>状态</th>
+                    <th>申请时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="withdrawal-list"></tbody>
+        </table>
+    </div>
+
+    <script>
+        const token = 'admin';
+
+        async function fetchWithdrawals() {
+            const query = document.getElementById('search-query').value;
+            const status = document.getElementById('status-filter').value;
+            const url = `/api/withdrawals?query=${encodeURIComponent(query)}&status=${status}`;
+
+            try {
+                const response = await fetch(url, {
+                    headers: { 'Authorization': token }
+                });
+                const data = await response.json();
+                renderList(data);
+            } catch (e) {
+                alert('获取数据失败');
+            }
+        }
+
+        function renderList(list) {
+            const tbody = document.getElementById('withdrawal-list');
+            tbody.innerHTML = '';
+
+            list.forEach(item => {
+                const tr = document.createElement('tr');
+                const details = item.paymentMethod === 'bank'
+                    ? `银行：${item.paymentDetails.bankName}<br>账号：${item.paymentDetails.cardNumber}<br>持卡人：${item.paymentDetails.accountName}`
+                    : `微信名：${item.paymentDetails.accountName}${item.paymentDetails.wechatQRCode ? '<br><a href="' + item.paymentDetails.wechatQRCode + '" target="_blank">查看二维码</a>' : ''}`;
+
+                tr.innerHTML = `
+                    <td>
+                        <strong>${item.userId.nickname}</strong><br>
+                        <small>${item.userId.email}</small>
+                    </td>
+                    <td><strong style="color:#f48c25">£${item.amount.toFixed(2)}</strong></td>
+                    <td><div class="details-box">${details}</div></td>
+                    <td><span class="status-badge status-${item.status}">${item.status === 'pending' ? '待处理' : item.status === 'completed' ? '已完成' : '已拒绝'}</span></td>
+                    <td>${new Date(item.createdAt).toLocaleString()}</td>
+                    <td class="actions">
+                        ${item.status === 'pending' ? `
+                            <button class="btn-approve" onclick="updateStatus('${item._id}', 'completed')">完成</button>
+                            <button class="btn-reject" onclick="updateStatus('${item._id}', 'rejected')">拒绝</button>
+                        ` : '-'}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function updateStatus(id, status) {
+            let adminNotes = '';
+            if (status === 'rejected') {
+                adminNotes = prompt('请输入拒绝原因:');
+                if (adminNotes === null) return;
+            } else {
+                if (!confirm('确认标记为已打款/已完成吗？')) return;
+            }
+
+            try {
+                const response = await fetch('/api/withdrawals/update', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': token
+                    },
+                    body: JSON.stringify({ id, status, adminNotes })
+                });
+                if (response.ok) {
+                    alert('操作成功');
+                    fetchWithdrawals();
+                }
+            } catch (e) {
+                alert('操作失败');
+            }
+        }
+
+        fetchWithdrawals();
+    </script>
+</body>
+
+</html>

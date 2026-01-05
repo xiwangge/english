@@ -23,6 +23,7 @@ import EmailVerification from '@english-learning/common/models/EmailVerification
 import Message from '@english-learning/common/models/Message.js';
 import Group from '@english-learning/common/models/Group.js';
 import SystemConfig from '@english-learning/common/models/SystemConfig.js';
+import WithdrawalRequest from '@english-learning/common/models/WithdrawalRequest.js';
 import { Resend } from 'resend';
 import DM20151123, * as $DM20151123 from '@alicloud/dm20151123';
 import * as $OpenApi from '@alicloud/openapi-client';
@@ -101,6 +102,27 @@ app.post('/api/payment/stripe-webhook', express.raw({ type: 'application/json' }
                 });
                 await order.save();
                 await user.save();
+
+                // --- 推广佣金计算 ---
+                if (user.invitedBy) {
+                    try {
+                        const referrer = await User.findById(user.invitedBy);
+                        if (referrer) {
+                            // 判断是否为终身会员 (10% 奖励)，否则 6%
+                            const isLifetime = referrer.subscriptionExpiry &&
+                                (referrer.subscriptionExpiry.getTime() - new Date().getTime() > 10 * 365 * 24 * 60 * 60 * 1000);
+
+                            const commissionRate = isLifetime ? 0.10 : 0.06;
+                            const rewardAmount = (session.amount_total / 100) * commissionRate;
+
+                            referrer.balance = (referrer.balance || 0) + rewardAmount;
+                            await referrer.save();
+                            console.log(`Referral reward: ${rewardAmount} GBP added to user ${referrer._id} (Rate: ${commissionRate * 100}%)`);
+                        }
+                    } catch (refError) {
+                        console.error('Failed to process referral reward:', refError);
+                    }
+                }
 
                 console.log(`User ${userId} subscription updated via Stripe for product ${productType}.`);
             } else {
@@ -898,6 +920,117 @@ app.get('/api/payment/query-status/:orderNo', auth, async (req, res) => {
         res.status(200).json({ status: order.status });
     } catch (error) {
         res.status(500).json({ message: '查询订单状态失败' });
+    }
+});
+
+// --- 推广与提现 API ---
+
+// 1. 发送更改支付信息的验证码
+app.post('/api/reward/send-payment-code', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.userId);
+        if (!user || !user.email) return res.status(400).json({ message: '用户邮箱未绑定' });
+
+        const code = generateVerificationCode();
+        await EmailVerification.findOneAndUpdate(
+            { email: user.email, type: 'payment_update' },
+            { code, createdAt: new Date() },
+            { upsert: true }
+        );
+
+        // 发送邮件
+        await dmClient.singleSendMail({
+            accountName: 'noreply@mail.xuebubu.com',
+            addressType: 0,
+            replyToAddress: false,
+            toAddress: user.email,
+            subject: '学步步 - 支付信息变更确认码',
+            htmlBody: `您好，您正在尝试更改收款账户信息。验证码为：<b>${code}</b>。如非本人操作，请忽略。`
+        });
+
+        res.json({ message: '验证码已发送至您的注册邮箱' });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ message: '发送验证码失败' });
+    }
+});
+
+// 2. 更新支付信息
+app.post('/api/reward/update-payment-info', auth, async (req, res) => {
+    try {
+        const { method, accountName, bankName, cardNumber, wechatQRCode, code } = req.body;
+        const user = await User.findById(req.userId);
+
+        // 校验验证码
+        const verification = await EmailVerification.findOne({ email: user.email, type: 'payment_update' });
+        if (!verification || verification.code !== code) {
+            return res.status(400).json({ message: '验证码错误' });
+        }
+        // 验证码有效期 10 分钟
+        if (new Date() - verification.createdAt > 10 * 60 * 1000) {
+            return res.status(400).json({ message: '验证码已过期' });
+        }
+
+        user.paymentInfo = {
+            method,
+            accountName,
+            bankName,
+            cardNumber,
+            wechatQRCode
+        };
+        await user.save();
+        await EmailVerification.deleteOne({ _id: verification._id });
+
+        res.json({ message: '支付信息已更新' });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ message: '更新支付信息失败' });
+    }
+});
+
+// 3. 申请提现
+app.post('/api/reward/withdraw', auth, async (req, res) => {
+    try {
+        const { amount } = req.body;
+        const user = await User.findById(req.userId);
+
+        if (!user.paymentInfo || user.paymentInfo.method === 'none') {
+            return res.status(400).json({ message: '请先设置收款信息' });
+        }
+        if (amount < 1) return res.status(400).json({ message: '最低提现金额为 1 英镑' });
+        if (user.balance < amount) return res.status(400).json({ message: '余额不足' });
+
+        // 创建提现请求
+        const request = new WithdrawalRequest({
+            userId: user._id,
+            amount,
+            paymentMethod: user.paymentInfo.method,
+            paymentDetails: {
+                accountName: user.paymentInfo.accountName,
+                bankName: user.paymentInfo.bankName,
+                cardNumber: user.paymentInfo.cardNumber,
+                wechatQRCode: user.paymentInfo.wechatQRCode
+            }
+        });
+
+        // 扣除余额
+        user.balance -= amount;
+
+        await Promise.all([request.save(), user.save()]);
+        res.json({ message: '提现申请已提交，预计 T+2 到账' });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ message: '提交提现申请失败' });
+    }
+});
+
+// 4. 获取提现记录
+app.get('/api/reward/withdrawals', auth, async (req, res) => {
+    try {
+        const list = await WithdrawalRequest.find({ userId: req.userId }).sort({ createdAt: -1 });
+        res.json(list);
+    } catch (e) {
+        res.status(500).json({ message: '获取记录失败' });
     }
 });
 
