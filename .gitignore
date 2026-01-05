@@ -1,5 +1,7 @@
 # Environment variables
 env.sh
+.env
+**/.env
 
 # Deployment scripts
 deploy-*.sh

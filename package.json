@@ -3,7 +3,8 @@
   "workspaces": [
     "english-learning-app/*",
     "english-learning-admin",
-    "packages/*"
+    "packages/*",
+    "english-learning-international/*"
   ],
   "dependencies": {
     "multer": "^2.0.2"

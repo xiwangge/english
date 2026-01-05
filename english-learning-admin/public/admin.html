@@ -1,28 +1,165 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <title>管理后台</title>
     <style>
-        body { font-family: sans-serif; margin: 2rem; background-color: #f9fafb; color: #111827; }
-        .container { max-width: 1200px; margin: auto; }
-        h1, h2 { color: #1f2937; }
-        .card { background: white; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
-        .message-item { border-bottom: 1px solid #e5e7eb; padding: 1rem 0; }
-        .message-item:last-child { border-bottom: none; }
-        .author { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
-        .avatar { width: 40px; height: 40px; border-radius: 50%; }
-        .nickname { font-weight: bold; }
-        .content { margin: 0.5rem 0; }
-        .time { font-size: 0.875rem; color: #6b7280; }
-        .actions { margin-top: 1rem; display: flex; gap: 1rem; align-items: center; }
-        select, input, textarea, button { font-size: 1rem; padding: 0.5rem 0.75rem; border-radius: 0.375rem; border: 1px solid #d1d5db; }
-        button { background-color: #3b82f6; color: white; cursor: pointer; border-color: #3b82f6; }
-        button:hover { background-color: #2563eb; }
-        textarea { width: 100%; box-sizing: border-box; }
-        .user-management-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; }
+        body {
+            font-family: sans-serif;
+            margin: 2rem;
+            background-color: #f9fafb;
+            color: #111827;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+        }
+
+        h1,
+        h2 {
+            color: #1f2937;
+        }
+
+        .card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .message-item {
+            border-bottom: 1px solid #e5e7eb;
+            padding: 1rem 0;
+        }
+
+        .message-item:last-child {
+            border-bottom: none;
+        }
+
+        .author {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+        }
+
+        .nickname {
+            font-weight: bold;
+        }
+
+        .content {
+            margin: 0.5rem 0;
+        }
+
+        .time {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .actions {
+            margin-top: 1rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        select,
+        input,
+        textarea,
+        button {
+            font-size: 1rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.375rem;
+            border: 1px solid #d1d5db;
+        }
+
+        button {
+            background-color: #3b82f6;
+            color: white;
+            cursor: pointer;
+            border-color: #3b82f6;
+        }
+
+        button:hover {
+            background-color: #2563eb;
+        }
+
+        textarea {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .user-management-item {
+            display: flex;
+            flex-direction: column;
+            padding: 1rem 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .user-info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-details {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-top: 0.5rem;
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .subscription-actions {
+            margin-top: 0.5rem;
+            padding-top: 0.5rem;
+            border-top: 1px dashed #e5e7eb;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .subscription-actions input {
+            width: 80px;
+            padding: 0.25rem;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .badge-vip {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-none {
+            background-color: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .stat-badge {
+            font-family: monospace;
+        }
     </style>
 </head>
+
 <body>
     <div class="container">
         <h1>管理后台</h1>
@@ -37,9 +174,12 @@
             <h2>价格管理</h2>
             <a href="/products.html" target="_blank">设置会员价格</a>
             <hr>
+            <h2>财务管理</h2>
+            <a href="/orders.html" target="_blank">订单查询与对账</a>
+            <hr>
             <h2>用户管理</h2>
             <div class="actions">
-                <input type="text" id="search-nickname" placeholder="按昵称搜索用户">
+                <input type="text" id="search-query" placeholder="按昵称或邮箱搜索用户">
                 <button onclick="searchUser()">搜索</button>
             </div>
             <div id="user-list"></div>
@@ -58,13 +198,13 @@
 
     <script>
         async function searchUser() {
-            const nickname = document.getElementById('search-nickname').value;
-            if (!nickname.trim()) {
-                alert('请输入要搜索的昵称');
+            const query = document.getElementById('search-query').value;
+            if (!query.trim()) {
+                alert('请输入搜索关键词');
                 return;
             }
             try {
-                const response = await fetch(`/api/users/search?nickname=${nickname}`, {
+                const response = await fetch(`/api/users/search?query=${encodeURIComponent(query)}`, {
                     headers: { 'Authorization': 'admin' }
                 });
                 const users = await response.json();
@@ -77,15 +217,37 @@
                 users.forEach(user => {
                     const item = document.createElement('div');
                     item.className = 'user-management-item';
+
+                    const isVip = user.subscriptionExpiry && new Date(user.subscriptionExpiry) > new Date();
+                    const expiryDate = user.subscriptionExpiry ? new Date(user.subscriptionExpiry).toLocaleDateString() : '未开通';
+
                     item.innerHTML = `
-                        <span>${user.nickname} (${user.userType})</span>
-                        <div>
-                            <select id="userType-${user._id}">
-                                <option value="user" ${user.userType === 'user' ? 'selected' : ''}>普通用户</option>
-                                <option value="admin" ${user.userType === 'admin' ? 'selected' : ''}>管理员</option>
-                                <option value="support" ${user.userType === 'support' ? 'selected' : ''}>客服</option>
-                            </select>
-                            <button onclick="updateUserType('${user._id}')">更新</button>
+                        <div class="user-info-row">
+                            <div>
+                                <span class="nickname">${user.nickname}</span>
+                                <span class="badge ${isVip ? 'badge-vip' : 'badge-none'}">${isVip ? 'VIP' : '普通'}</span>
+                                <div style="font-size: 0.8rem; color: #666;">${user.email || '无邮箱'}</div>
+                            </div>
+                            <div>
+                                <select id="userType-${user._id}">
+                                    <option value="user" ${user.userType === 'user' ? 'selected' : ''}>用户</option>
+                                    <option value="admin" ${user.userType === 'admin' ? 'selected' : ''}>管理员</option>
+                                    <option value="support" ${user.userType === 'support' ? 'selected' : ''}>客服</option>
+                                </select>
+                                <button onclick="updateUserType('${user._id}')">更新</button>
+                            </div>
+                        </div>
+                        <div class="user-details">
+                            <span class="stat-badge">学分: <strong>${user.credits || 0}</strong></span>
+                            <span class="stat-badge">金币: <strong>${user.golds || 0}</strong></span>
+                            <span>会员有效期: <strong>${expiryDate}</strong></span>
+                            <span>注册时间: ${new Date(user.createdAt).toLocaleDateString()}</span>
+                        </div>
+                        <div class="subscription-actions">
+                            <span style="font-size: 0.875rem; color: #374151;">手动增加订阅:</span>
+                            <input type="number" id="add-days-${user._id}" value="30" min="1">
+                            <span>天</span>
+                            <button style="padding: 0.25rem 0.75rem; font-size: 0.875rem;" onclick="addSubscription('${user._id}')">确认增加</button>
                         </div>
                     `;
                     userList.appendChild(item);
@@ -109,7 +271,7 @@
                 });
                 if (response.ok) {
                     alert('用户类型更新成功');
-                    searchUser(); // Refresh the list
+                    searchUser(); // 刷新列表
                 } else {
                     alert('更新失败');
                 }
@@ -119,11 +281,42 @@
             }
         }
 
+        async function addSubscription(id) {
+            const days = document.getElementById(`add-days-${id}`).value;
+            if (!days || days <= 0) {
+                alert('请输入有效天数');
+                return;
+            }
+            if (!confirm(`确定要为该用户增加 ${days} 天订阅吗？`)) return;
+
+            try {
+                const response = await fetch(`/api/users/${id}/add-subscription`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'admin'
+                    },
+                    body: JSON.stringify({ days })
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    alert('订阅天数增加成功');
+                    searchUser(); // 刷新列表查看最新有效期
+                } else {
+                    const err = await response.json();
+                    alert('增加失败: ' + err.message);
+                }
+            } catch (error) {
+                console.error('增加订阅天数失败:', error);
+                alert('网络错误，请稍后重试');
+            }
+        }
+
         async function fetchMessages() {
             try {
                 const response = await fetch('/api/messagesNeedRead');
                 const messages = await response.json();
-                
+
                 const proposalsList = document.getElementById('proposals-list');
                 const messagesList = document.getElementById('messages-list');
                 proposalsList.innerHTML = '';
@@ -176,11 +369,11 @@
         async function updateProposal(id) {
             const status = document.getElementById(`status-${id}`).value;
             const voteDeadline = document.getElementById(`deadline-${id}`).value;
-            
+
             try {
                 const response = await fetch(`/api/messages/${id}/status`, {
                     method: 'PATCH',
-                    headers: { 
+                    headers: {
                         'Content-Type': 'application/json',
                         'Authorization': 'admin'
                     },
@@ -198,25 +391,25 @@
         }
 
         async function updateMessageStatus(id, status) {
-           try {
-               const response = await fetch(`/api/messages/${id}/status`, {
-                   method: 'PATCH',
-                   headers: {
-                       'Content-Type': 'application/json',
-                       'Authorization': 'admin'
-                   },
-                   body: JSON.stringify({ status })
-               });
-               if (response.ok) {
-                   alert('留言状态更新成功');
-                   fetchMessages();
-               } else {
-                   alert('更新失败');
-               }
-           } catch (error) {
-               console.error('更新留言状态失败:', error);
-           }
-       }
+            try {
+                const response = await fetch(`/api/messages/${id}/status`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'admin'
+                    },
+                    body: JSON.stringify({ status })
+                });
+                if (response.ok) {
+                    alert('留言状态更新成功');
+                    fetchMessages();
+                } else {
+                    alert('更新失败');
+                }
+            } catch (error) {
+                console.error('更新留言状态失败:', error);
+            }
+        }
 
         async function postReply(id) {
             const content = document.getElementById(`reply-${id}`).value;
@@ -228,7 +421,7 @@
                 const token = localStorage.getItem('token'); // Assuming admin token is stored
                 const response = await fetch(`/api/messages/${id}/replies`, {
                     method: 'POST',
-                    headers: { 
+                    headers: {
                         'Content-Type': 'application/json',
                         'Authorization': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTIwMzVjZjc4ZjM2MWFhYmI5NWYyZGUiLCJpYXQiOjE3NjM3MTg2MDcsImV4cCI6MTc3OTI3MDYwN30.gg5KLO6GMA-vvphD_Y8Z7YCgaBYzIbRbsSb3zLMq-wY'
                     },
@@ -248,4 +441,5 @@
         document.addEventListener('DOMContentLoaded', fetchMessages);
     </script>
 </body>
+
 </html>

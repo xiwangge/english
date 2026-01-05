@@ -1,0 +1,77 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: #fcf6ed;
+  /* 浅米色背景，根据图片调整 */
+  color: #333;
+  min-height: 100vh;
+}
+
+:root {
+  --primary-color: #f48c25;
+  --bg-color: #fcf6ed;
+  --text-color: #3d2e24;
+  --text-primary: #3d2e24;
+  --text-secondary: #a1887f;
+  --card-bg: #ffffff;
+  --border-color: #e6e0db;
+  --transition-speed: 0.3s;
+}
+
+/* Also support .dark on containers if needed, but primary is html.dark */
+.dark,
+html.dark {
+  --bg-color: #1a202c;
+  --text-color: #e2e8f0;
+  --text-primary: #e2e8f0;
+  --text-secondary: #a0aec0;
+  --card-bg: #2d3748;
+  --border-color: #4a5568;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease;
+}
+
+/* Base components */
+.card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+  transition: background-color var(--transition-speed), border-color var(--transition-speed);
+}
+
+html.dark button {
+  background-color: #4a5568;
+  color: #e2e8f0;
+  border: 1px solid #718096;
+}
+
+html.dark button.btn-primary {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+}
+
+html.dark .auth-button {
+  background-color: #2d3748;
+  color: #e2e8f0;
+  border: 1px solid #4a5568;
+}
+
+html.dark .sidebar {
+  background-color: #2d3748;
+  border-right-color: #4a5568;
+}
+
+html.dark .user-greeting,
+html.dark .nav-menu a {
+  color: #a0aec0;
+}
+
+html.dark .nav-menu a.active {
+  background-color: #4a5568;
+  color: #ffffff;
+}

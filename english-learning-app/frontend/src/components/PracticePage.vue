@@ -481,7 +481,8 @@ async function markUnitAsComplete() {
             })
         });
         if (response.ok) {
-            userStore.user.credits += creditsPerUnit;
+            userStore.user.credits = (userStore.user.credits || 0) + creditsPerUnit;
+            userStore.user.golds = (userStore.user.golds || 0) + creditsPerUnit;
         }
     } catch (error) {
         console.error('标记完成失败:', error);
@@ -1077,8 +1078,20 @@ watch(isZenMode, updateHeaderColor); // 模式变了，Header 也要变
 
 /* 句子标题 */
 .sentence-display h1 { font-size: 2.2rem; margin: 0; font-weight: 500; text-align: center; color: var(--text-color); line-height: 1.4; opacity: 0.9; }
-.phonetic-word { font-size: 0.9em; color: #666; margin-bottom: 4px; }
+.phonetic-word { font-size: 1.2rem; color: #666; margin-bottom: 8px; }
 .practice-container.dark-mode .phonetic-word { color: #a0aec0; }
+
+.word-mode-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.word-mode-container .phonetic-word {
+    font-size: 2rem;
+    margin-bottom: 12px;
+    opacity: 0.8;
+}
 
 /* Footer */
 .practice-footer {

@@ -6,7 +6,7 @@ const productSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
-    enum: ['monthly', 'quarterly', 'yearly']
+    enum: ['monthly', 'quarterly', 'yearly', 'lifetime']
   },
   name: {
     type: String,
@@ -16,6 +16,9 @@ const productSchema = new mongoose.Schema({
     type: Number,
     required: true,
     min: 0
+  },
+  stripePriceId: { // 新增：Stripe 产品的 Price ID
+    type: String,
   },
   description: [String] // 特性列表
 }, {

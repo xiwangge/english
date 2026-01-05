@@ -26,6 +26,7 @@ import Message from '@english-learning/common/models/Message.js';
 import Group from '@english-learning/common/models/Group.js'; // 引入 Group 模型
 import Product from '@english-learning/common/models/Product.js';
 import Order from '@english-learning/common/models/Order.js';
+import SystemConfig from '@english-learning/common/models/SystemConfig.js';
 import solarlunar from 'solarlunar';
 
 const verificationCodeLength = 6; // 验证码长度
@@ -605,6 +606,14 @@ app.post('/api/loginWithVerificationCode', async (req, res) => {
         invitationCode: invitationCode,
         city: city
       });
+
+      // --- 新增：试用天数逻辑 ---
+      const trialConfig = await SystemConfig.findOne({ key: 'trial_days' });
+      const trialDays = trialConfig ? parseInt(trialConfig.value) : 0;
+      if (trialDays > 0) {
+        user.subscriptionExpiry = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000);
+      }
+
       await user.save();
 
       // 处理邀请逻辑
@@ -663,6 +672,7 @@ app.get('/api/userinfo', auth, async (req, res) => {
       invitedCount: user.invitedCount,
       subscriptionExpiry: user.subscriptionExpiry,
       credits: user.credits,
+      golds: user.golds,
       email: user.email,
       group: user.group, // 返回群组信息
     });
@@ -1033,7 +1043,8 @@ app.get('/api/learning-books', auth, async (req, res) => {
         description: userBook.bookId.description,
         coverImage: userBook.bookId.coverImage,
         progress: progress,
-        lastCompletedUnitId: lastCompletedUnitId // 添加 lastCompletedUnitId
+        lastCompletedUnitId: lastCompletedUnitId, // 添加 lastCompletedUnitId
+        isFree: userBook.bookId.isFree // 添加 isFree
       };
     });
 

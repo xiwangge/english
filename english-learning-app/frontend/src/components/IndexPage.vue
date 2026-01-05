@@ -66,7 +66,7 @@
         <div class="header-actions">
           <div class="customer-service-container" @mouseover="showQRCode = true" @mouseout="showQRCode = false">
             <button class="theme-toggle-btn">
-              <span class="icon">📧</span>
+              <img src="/images/wechat.png" class="wechat-icon" alt="微信">
             </button>
             <div v-show="showQRCode" class="qr-code-popup">
               <img src="/images/xue_kefu_qr.jpg" alt="客服二维码">
@@ -140,8 +140,13 @@ const formattedExpiryDate = computed(() => {
   const expiry = userStore.user.subscriptionExpiry;
   if (!expiry) return null;
   const date = new Date(expiry);
-  if (date < new Date()) return '已过期';
-  return date.toLocaleDateString();
+  const now = new Date();
+  if (date < now) return '已过期';
+  
+  // 如果是终身会员（100年）
+  if (date.getFullYear() > now.getFullYear() + 50) return '终身会员';
+  
+  return date.toLocaleDateString() + ' 到期';
 });
 
 const isSubscribed = computed(() => {
@@ -479,24 +484,29 @@ function redirectToInternationalLogin(inNewWindow = false) {
 }
 
 async function goToInternationalSite() {
-  if (isLoggedIn.value) {
-    const token = localStorage.getItem('token');
-    try {
-      const response = await fetch('/api/sso/generate', {
-        method: 'POST',
-        headers: { 'Authorization': token }
-      });
-      if (!response.ok) throw new Error('Failed to generate SSO code');
+  const token = localStorage.getItem('token');
+  if (!token) {
+    window.location.href = 'https://xuebubu.org/login';
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/sso/generate', {
+      method: 'POST',
+      headers: { 'Authorization': token }
+    });
+    
+    if (response.ok) {
       const data = await response.json();
-      const ssoCode = data.sso_code;
-      const internationalUrl = `https://xuebubu.org/login?sso_code=${ssoCode}`;
-      window.open(internationalUrl, '_blank');
-    } catch (error) {
-      console.error('无法跳转到国际站:', error);
-      toast.error('跳转失败，请稍后重试');
+      if (data.sso_code) {
+        window.location.href = `https://xuebubu.org/login?sso_code=${data.sso_code}`;
+        return;
+      }
     }
-  } else {
-    redirectToInternationalLogin(true);
+    window.location.href = 'https://xuebubu.org/login';
+  } catch (error) {
+    console.error('无法跳转到国际站:', error);
+    window.location.href = 'https://xuebubu.org/login';
   }
 }
 </script>
@@ -605,6 +615,12 @@ async function goToInternationalSite() {
 
 .dark .theme-toggle-btn:hover {
   background-color: rgba(255,255,255,0.1);
+}
+
+.wechat-icon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
 }
 
 .customer-service-container {

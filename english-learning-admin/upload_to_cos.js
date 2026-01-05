@@ -28,6 +28,9 @@ async function uploadFile(localPath, cosKey) {
             Key: cosKey,
             Body: fs.createReadStream(localPath),
             ContentLength: fs.statSync(localPath).size,
+            Headers: {
+                'Content-Type': 'audio/mpeg'
+            }
         }, (err, data) => {
             if (err) {
                 console.error(`❌ 上传失败: ${localPath} -> ${cosKey}`);

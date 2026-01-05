@@ -54,9 +54,10 @@
   
           <div class="sidebar-widget info-widget">
             <ul>
-              <li><strong>作者:</strong> {{ bookData.author || '官方课程' }}</li>
-              <li><strong>难度:</strong> {{ bookData.difficulty || '中等' }}</li>
-              <li><strong>学习人数:</strong> {{ bookData.addedCount || 0 }}</li>
+              <li><strong>版本:</strong> {{ bookData.edition }}</li>
+              <li><strong>出版社:</strong> {{ bookData.publisher }}</li>
+              <li><strong>建议时长:</strong> {{ bookData.studyTime }} 分钟</li>
+              <li><strong>每章获得学分:</strong> {{ bookData.credits }}</li>
             </ul>
           </div>
         </div>
@@ -174,6 +175,18 @@ async function addToMyBooks() {
 }
 
 function continueLearning() {
+  // 订阅检查
+  if (bookData.value && !bookData.value.isFree) {
+    const expiry = userStore.user.subscriptionExpiry;
+    if (!expiry || new Date(expiry) < new Date()) {
+      toast.info('订阅已过期，请前往国际站续费后继续使用。');
+      // 可选：延迟跳转或显示特定提示
+      //setTimeout(() => {
+      //  window.open('http://43.173.248.180:5001', '_blank');
+      //}, 2000);
+      return;
+    }
+  }
   router.push({ name: 'practice', query: { bookId: route.params.id } });
 }
 

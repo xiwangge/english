@@ -1,22 +1,75 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>价格管理</title>
     <style>
-        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f9; }
-        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        h1 { text-align: center; }
-        .product-form { display: flex; flex-direction: column; gap: 15px; }
-        .product-item { display: flex; align-items: center; gap: 10px; }
-        .product-item label { flex-basis: 100px; }
-        .product-item input { flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
-        .btn-save { padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
-        .btn-save:hover { background-color: #0056b3; }
-        #message { text-align: center; margin-top: 15px; color: green; }
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+            background-color: #f4f4f9;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        .product-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .product-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .product-item label {
+            flex-basis: 100px;
+        }
+
+        .product-item input {
+            flex-grow: 1;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        .btn-save {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .btn-save:hover {
+            background-color: #0056b3;
+        }
+
+        #message {
+            text-align: center;
+            margin-top: 15px;
+            color: green;
+        }
     </style>
 </head>
+
 <body>
     <div class="container">
         <h1>会员价格管理</h1>
@@ -54,10 +107,20 @@
                 form.innerHTML = '';
                 productsData.forEach(product => {
                     const item = document.createElement('div');
-                    item.className = 'product-item';
+                    item.className = 'product-item-container';
+                    item.style.borderBottom = '1px solid #eee';
+                    item.style.paddingBottom = '15px';
+                    item.style.marginBottom = '15px';
                     item.innerHTML = `
-                        <label for="${product.type}">${product.name}:</label>
-                        <input type="number" id="${product.type}" value="${product.price}" data-type="${product.type}">
+                        <h3 style="margin-top:0">${product.name} (${product.type})</h3>
+                        <div class="product-item">
+                            <label>价格 (GBP):</label>
+                            <input type="number" class="price-input" data-type="${product.type}" value="${product.price}">
+                        </div>
+                        <div class="product-item" style="margin-top:10px">
+                            <label>Stripe Price ID:</label>
+                            <input type="text" class="stripe-id-input" data-type="${product.type}" value="${product.stripePriceId || ''}" placeholder="price_...">
+                        </div>
                     `;
                     form.appendChild(item);
                 });
@@ -66,10 +129,14 @@
             // 保存更改
             saveButton.addEventListener('click', async () => {
                 const updatedProducts = [];
-                form.querySelectorAll('input').forEach(input => {
+                const containers = form.querySelectorAll('.product-item-container');
+                containers.forEach(container => {
+                    const priceInput = container.querySelector('.price-input');
+                    const stripeIdInput = container.querySelector('.stripe-id-input');
                     updatedProducts.push({
-                        type: input.dataset.type,
-                        price: parseFloat(input.value)
+                        type: priceInput.dataset.type,
+                        price: parseFloat(priceInput.value),
+                        stripePriceId: stripeIdInput.value.trim()
                     });
                 });
 
@@ -83,8 +150,8 @@
                         body: JSON.stringify({ products: updatedProducts })
                     });
                     if (!response.ok) {
-                         const errorData = await response.json();
-                         throw new Error(errorData.message || '保存失败');
+                        const errorData = await response.json();
+                        throw new Error(errorData.message || '保存失败');
                     }
                     messageEl.textContent = '价格更新成功！';
                     messageEl.style.color = 'green';
@@ -99,4 +166,5 @@
         });
     </script>
 </body>
+
 </html>

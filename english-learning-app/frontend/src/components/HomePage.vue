@@ -28,7 +28,7 @@
                             <p class="group-slogan">{{ userStore.user.group.slogan }}</p>
                         </div>
                         <h3 v-else>{{ userStore.user.nickname || '游客' }}，欢迎回来！</h3>
-                        <p>学分: {{ userStore.user.group ? userStore.user.group.totalCredits : userStore.user.credits || 0 }}</p>
+                        <p>学分: {{ userStore.user.group ? userStore.user.group.totalCredits : userStore.user.credits || 0 }} | 金币: {{ userStore.user.golds || 0 }}</p>
                     </div>
                     <div class="monster-avatar">
                         <img v-if="userStore.user.group" :src="`/images/${userStore.user.group.avatar}`" alt="Group Avatar">

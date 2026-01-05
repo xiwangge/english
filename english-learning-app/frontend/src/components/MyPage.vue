@@ -12,7 +12,7 @@
           <div class="progress-bar-container">
             <div class="progress-label">
               <span>Progress</span>
-              <span>{{ book.progress || 0 }}%</span>
+              <span>{{ (book.progress || 0).toFixed(2) }}%</span>
             </div>
             <div class="progress-bar">
               <div class="progress-fill" :style="{ width: (book.progress || 0) + '%' }"></div>
@@ -28,10 +28,12 @@
 <script setup>
 import { onMounted, onUnmounted, ref, inject, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import { useToast } from 'vue-toastification';
 // 引入 userStore
 import { userStore } from '../store/user.js';
 
 const router = useRouter();
+const toast = useToast();
 const learningBooks = ref([]);
 
 // 2. 注入 Header 颜色控制
@@ -45,6 +47,18 @@ const updateHeaderColor = () => {
 };
 
 function toPractice(bookId) {
+  const book = learningBooks.value.find(b => b.id === bookId);
+  // 订阅检查
+  if (book && !book.isFree) {
+    const expiry = userStore.user.subscriptionExpiry;
+    if (!expiry || new Date(expiry) < new Date()) {
+      toast.info('订阅已过期，请前往国际站续费后继续使用。');
+      //setTimeout(() => {
+      //  window.open('http://43.173.248.180:5001', '_blank');
+      //}, 2000);
+      return;
+    }
+  }
   router.push({ name: 'practice', query: { bookId } });
 }
 

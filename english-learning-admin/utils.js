@@ -19,7 +19,7 @@ function loadDictSync() {
     try {
         // 1. 定位词典文件路径
         const dictPath = path.resolve(__dirname, 'ipadict.txt');
-        
+
         console.log(`[本地库] 正在读取词典文件: ${dictPath}`);
 
         // 2. 同步读取文件内容
@@ -30,11 +30,11 @@ function loadDictSync() {
         }
 
         const content = fs.readFileSync(dictPath, 'utf8');
-        
+
         // 3. 解析文件内容 (格式: word  ipa)
         ipaCache = new Map();
         const lines = content.split(/\r?\n/);
-        
+
         lines.forEach(line => {
             const parts = line.trim().split(/\s+/);
             if (parts.length >= 2) {
@@ -112,7 +112,7 @@ export async function getChineseFromYoudao(wordText) {
     const salt = crypto.randomUUID();
     const curtime = Math.round(new Date().getTime() / 1000);
     const query = wordText;
-    
+
     const str1 = process.env.YOUDAO_APP_KEY + truncate(query) + salt + curtime + config.YOUDAO_APP_SECRET;
     const sign = crypto.createHash('sha256').update(str1).digest('hex');
 
@@ -126,11 +126,11 @@ export async function getChineseFromYoudao(wordText) {
         const youdaoResponse = await fetch('https://openapi.youdao.com/api?' + params.toString(), {
             method: 'POST',
         });
-        
+
         const data = await youdaoResponse.json();
         if (data.errorCode !== "0") {
-             console.warn(`Youdao: ${wordText} translation failed.`);
-             return 'N/A';
+            console.warn(`Youdao: ${wordText} translation failed.`);
+            return 'N/A';
         }
 
         let chinese = 'N/A';
@@ -170,13 +170,13 @@ function loadCedictSync() {
             if (line.startsWith('#') || line.trim() === '') {
                 return; // 跳过注释和空行
             }
-            
+
             const match = line.match(/^(\S+)\s(\S+)\s\[(.*?)\]\s\/(.*)\/$/);
             if (match) {
                 const simplified = match[2];
                 const pinyin = match[3];
                 const englishTranslations = match[4].split('/');
-                
+
                 const chineseEntry = simplified; // 只保留简体中文
 
                 // 遍历所有英文翻译，创建反向索引
@@ -206,13 +206,19 @@ function loadCedictSync() {
  * 从本地 CEDICT 词典获取中文翻译 (通过英文单词)
  */
 export function getChineseFromCEDICT(wordText) {
+    if (!wordText) return 'N/A';
     if (!cedictCache) {
         loadCedictSync();
     }
     const cleanWord = wordText.toLowerCase().trim();
-    const chinese = cedictCache.get(cleanWord);
+    let chinese = cedictCache.get(cleanWord);
 
     if (chinese) {
+        // 如果取出来的中文超过5个意思，只取前5个意思
+        const meanings = chinese.split('; ');
+        if (meanings.length > 5) {
+            chinese = meanings.slice(0, 5).join('; ');
+        }
         console.log(`[CEDICT] 命中: ${wordText} -> ${chinese}`);
         return chinese;
     } else {

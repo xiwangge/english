@@ -4,11 +4,13 @@
 
 <script setup>
 import { onMounted, provide } from 'vue';
+import { useRouter } from 'vue-router';
 import { userStore } from './store/user.js';
 import { useToast } from 'vue-toastification';
 
 import RaceDemo from './components/raceDemo.vue';
 
+const router = useRouter();
 const toast = useToast();
 
 async function fetchUserInfo() {
@@ -57,6 +59,11 @@ onMounted(async () => {
         toast.success('登录成功！');
         // 登录成功后，清除 URL 中的 code，避免刷新时重复验证
         window.history.replaceState({}, document.title, window.location.pathname);
+        
+        // 如果在登录页，跳转到首页
+        if (window.location.pathname === '/login') {
+          router.push('/');
+        }
       } else {
         toast.error(data.message || '单点登录失败');
       }

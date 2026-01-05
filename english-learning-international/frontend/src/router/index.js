@@ -1,23 +1,55 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import LoginPage from '../LoginPage.vue'
-import RewardPage from '../RewardPage.vue'
+import IndexPage from '../components/IndexPage.vue'
 
 const routes = [
   {
-    path: '/',
-    redirect: '/login'
-  },
-  {
     path: '/login',
     name: 'login',
-    component: LoginPage
+    component: () => import('../components/LoginPage.vue')
   },
   {
-    path: '/reward',
-    name: 'reward',
-    component: RewardPage,
-    // It's good practice to protect pages that require login
-    meta: { requiresAuth: true } 
+    path: '/',
+    name: 'index',
+    component: IndexPage,
+    children: [
+      {
+        path: '', // 默认子路由
+        name: 'home',
+        component: () => import('../components/HomePage.vue')
+      },
+      {
+        path: 'reward',
+        name: 'reward',
+        component: () => import('../components/RewardPage.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
+        path: 'setting',
+        name: 'setting',
+        component: () => import('../components/SettingPage.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
+        path: 'messages',
+        name: 'messages',
+        component: () => import('../components/MessageBoard.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
+        path: 'about',
+        name: 'about',
+        component: () => import('../components/AboutPage.vue')
+      },
+      {
+        path: 'privacy',
+        name: 'privacy',
+        component: () => import('../components/PrivacyPage.vue')
+      }
+    ]
+  },
+  {
+    path: '/index',
+    redirect: '/'
   }
 ]
 

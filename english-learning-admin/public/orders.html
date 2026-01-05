@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <title>订单查询 - 管理后台</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 2rem;
+            background-color: #f9fafb;
+            color: #111827;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+        }
+
+        h1 {
+            color: #1f2937;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .search-area {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+
+        .search-area input,
+        .search-area select {
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            min-width: 200px;
+        }
+
+        button {
+            background-color: #3b82f6;
+            color: white;
+            cursor: pointer;
+            border: 1px solid #3b82f6;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background-color: #2563eb;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            background: white;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 0.75rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        th {
+            background-color: #f3f4f6;
+            color: #374151;
+            font-weight: 600;
+        }
+
+        .status-paid {
+            color: #059669;
+            font-weight: bold;
+        }
+
+        .status-pending {
+            color: #d97706;
+        }
+
+        .status-failed {
+            color: #dc2626;
+        }
+
+        .user-info {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 2rem;
+            color: #6b7280;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>订单查询</h1>
+
+        <div class="card">
+            <div class="search-area">
+                <input type="text" id="orderNo" placeholder="Stripe 会话 ID (orderNo)">
+                <input type="text" id="transactionId" placeholder="流水号 (transactionId)">
+                <input type="text" id="userQuery" placeholder="用户昵称或邮箱">
+                <select id="status">
+                    <option value="">全部状态</option>
+                    <option value="paid">已支付 (paid)</option>
+                    <option value="pending">待支付 (pending)</option>
+                    <option value="failed">失败 (failed)</option>
+                </select>
+                <button onclick="searchOrders()">查询订单</button>
+            </div>
+
+            <table id="ordersTable">
+                <thead>
+                    <tr>
+                        <th>创建时间</th>
+                        <th>订单 ID / 流水号</th>
+                        <th>用户信息</th>
+                        <th>购买项目</th>
+                        <th>金额 (GBP)</th>
+                        <th>状态</th>
+                    </tr>
+                </thead>
+                <tbody id="ordersList">
+                    <!-- 数据将通过 JS 填充 -->
+                </tbody>
+            </table>
+            <div id="noData" class="no-data" style="display: none;">未找到匹配的订单记录</div>
+        </div>
+    </div>
+
+    <script>
+        async function searchOrders() {
+            const orderNo = document.getElementById('orderNo').value.trim();
+            const transactionId = document.getElementById('transactionId').value.trim();
+            const query = document.getElementById('userQuery').value.trim();
+            const status = document.getElementById('status').value;
+
+            let apiUrl = '/api/orders?';
+            if (orderNo) apiUrl += `orderNo=${encodeURIComponent(orderNo)}&`;
+            if (transactionId) apiUrl += `transactionId=${encodeURIComponent(transactionId)}&`;
+            if (query) apiUrl += `query=${encodeURIComponent(query)}&`;
+            if (status) apiUrl += `status=${status}&`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    headers: { 'Authorization': 'admin' }
+                });
+
+                if (!response.ok) throw new Error('获取订单失败');
+
+                const orders = await response.json();
+                renderOrders(orders);
+            } catch (error) {
+                console.error(error);
+                alert('查询失败，请检查网络或权限');
+            }
+        }
+
+        function renderOrders(orders) {
+            const tbody = document.getElementById('ordersList');
+            const noData = document.getElementById('noData');
+            tbody.innerHTML = '';
+
+            if (orders.length === 0) {
+                noData.style.display = 'block';
+                return;
+            }
+
+            noData.style.display = 'none';
+            orders.forEach(order => {
+                const tr = document.createElement('tr');
+
+                const date = new Date(order.createdAt).toLocaleString();
+                const userDisplay = order.userId ?
+                    `<div>${order.userId.nickname}</div><div class="user-info">${order.userId.email}</div>` :
+                    '未知用户';
+
+                const idsDisplay = `
+                    <div style="font-size: 0.8rem;"><strong>ID:</strong> ${order.orderNo || '-'}</div>
+                    <div style="font-size: 0.8rem;"><strong>TX:</strong> ${order.transactionId || '-'}</div>
+                `;
+
+                tr.innerHTML = `
+                    <td>${date}</td>
+                    <td>${idsDisplay}</td>
+                    <td>${userDisplay}</td>
+                    <td>${order.productId ? order.productId.name : '未知产品'}</td>
+                    <td>£${order.amount.toFixed(2)}</td>
+                    <td><span class="status-${order.status}">${order.status}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 页面加载时执行一次查询
+        window.addEventListener('load', searchOrders);
+    </script>
+</body>
+
+</html>

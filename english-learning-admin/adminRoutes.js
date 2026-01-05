@@ -10,6 +10,8 @@ import User from '@english-learning/common/models/User.js';
 import Book from '@english-learning/common/models/Book.js';
 import Word from '@english-learning/common/models/Word.js';
 import Product from '@english-learning/common/models/Product.js';
+import Order from '@english-learning/common/models/Order.js';
+import SystemConfig from '@english-learning/common/models/SystemConfig.js';
 import COS from 'cos-nodejs-sdk-v5';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -37,101 +39,143 @@ const upload = multer({ storage: storage });
 
 // 获取需要回复的消息
 router.get('/messagesNeedRead', async (req, res) => {
-  try {
-    const messages = await Message.find({ status: { $in: ['approved', 'pending'] } })
-      .populate('author', 'nickname avatar')
-      .populate('replies.author', 'nickname avatar')
-      .sort({ createdAt: -1 });
-    res.status(200).json(messages);
-  } catch (error) {
-    res.status(500).json({ message: '获取留言失败' });
-  }
+    try {
+        const messages = await Message.find({ status: { $in: ['approved', 'pending'] } })
+            .populate('author', 'nickname avatar')
+            .populate('replies.author', 'nickname avatar')
+            .sort({ createdAt: -1 });
+        res.status(200).json(messages);
+    } catch (error) {
+        res.status(500).json({ message: '获取留言失败' });
+    }
 });
 
 // 审核提案
 router.patch('/messages/:id/status', async (req, res) => {
-  try {
-    const token = req.headers.authorization;
-    if(token !== 'admin') {
-      return res.status(403).json({ message: '无权访问' });
-    }
-    const { status, voteDeadline } = req.body;
-    const message = await Message.findById(req.params.id);
-    if (!message) {
-      return res.status(404).json({ message: '留言或提案不存在' });
-    }
+    try {
+        const token = req.headers.authorization;
+        if (token !== 'admin') {
+            return res.status(403).json({ message: '无权访问' });
+        }
+        const { status, voteDeadline } = req.body;
+        const message = await Message.findById(req.params.id);
+        if (!message) {
+            return res.status(404).json({ message: '留言或提案不存在' });
+        }
 
-    // Differentiate logic based on messageType
-    if (message.messageType === 'proposal') {
-      if (status) {
-        message.status = status;
-      }
-      if (status === 'approved' && voteDeadline) {
-        message.voteDeadline = voteDeadline;
-      }
-    } else if (message.messageType === 'message') {
-      if (status === 'closed') {
-        message.status = status;
-      } else {
-        // For now, only 'closed' is a valid status update for messages
-        return res.status(400).json({ message: '无效的状态更新' });
-      }
-    } else {
-      return res.status(400).json({ message: '未知的消息类型' });
-    }
+        // Differentiate logic based on messageType
+        if (message.messageType === 'proposal') {
+            if (status) {
+                message.status = status;
+            }
+            if (status === 'approved' && voteDeadline) {
+                message.voteDeadline = voteDeadline;
+            }
+        } else if (message.messageType === 'message') {
+            if (status === 'closed') {
+                message.status = status;
+            } else {
+                // For now, only 'closed' is a valid status update for messages
+                return res.status(400).json({ message: '无效的状态更新' });
+            }
+        } else {
+            return res.status(400).json({ message: '未知的消息类型' });
+        }
 
-    await message.save();
-    res.status(200).json(message);
-  } catch (error) {
-    res.status(500).json({ message: '审核失败' });
-  }
+        await message.save();
+        res.status(200).json(message);
+    } catch (error) {
+        res.status(500).json({ message: '审核失败' });
+    }
 });
 
 // 根据昵称搜索用户
 router.get('/users/search', async (req, res) => {
-  try {
-    // 简单的权限检查
-    const token = req.headers.authorization;
-    if (token !== 'admin') {
-      return res.status(403).json({ message: '无权访问' });
+    try {
+        // 简单的权限检查
+        const token = req.headers.authorization;
+        if (token !== 'admin') {
+            return res.status(403).json({ message: '无权访问' });
+        }
+        const { query } = req.query;
+        if (!query) {
+            return res.status(400).json({ message: '请提供搜索关键词' });
+        }
+        // 使用正则表达式进行模糊查询，不区分大小写，支持昵称或邮箱
+        const users = await User.find({
+            $or: [
+                { nickname: { $regex: query, $options: 'i' } },
+                { email: { $regex: query, $options: 'i' } }
+            ]
+        }).select('nickname email userType credits golds subscriptionExpiry createdAt');
+        res.status(200).json(users);
+    } catch (error) {
+        console.error('搜索用户失败:', error);
+        res.status(500).json({ message: '服务器搜索用户失败' });
     }
-    const { nickname } = req.query;
-    if (!nickname) {
-      return res.status(400).json({ message: '请提供昵称' });
-    }
-    // 使用正则表达式进行模糊查询，不区分大小写
-    const users = await User.find({ nickname: { $regex: nickname, $options: 'i' } }).select('nickname userType');
-    res.status(200).json(users);
-  } catch (error) {
-    console.error('搜索用户失败:', error);
-    res.status(500).json({ message: '服务器搜索用户失败' });
-  }
 });
 
 // 更新用户类型
 router.patch('/users/:id/userType', async (req, res) => {
-  try {
-    const token = req.headers.authorization;
-    if (token !== 'admin') {
-      return res.status(403).json({ message: '无权访问' });
-    }
-    const { userType } = req.body;
-    const userId = req.params.id;
+    try {
+        const token = req.headers.authorization;
+        if (token !== 'admin') {
+            return res.status(403).json({ message: '无权访问' });
+        }
+        const { userType } = req.body;
+        const userId = req.params.id;
 
-    if (!['user', 'admin', 'support'].includes(userType)) {
-      return res.status(400).json({ message: '无效的用户类型' });
-    }
+        if (!['user', 'admin', 'support'].includes(userType)) {
+            return res.status(400).json({ message: '无效的用户类型' });
+        }
 
-    const user = await User.findByIdAndUpdate(userId, { userType }, { new: true });
+        const user = await User.findByIdAndUpdate(userId, { userType }, { new: true });
 
-    if (!user) {
-      return res.status(404).json({ message: '用户不存在' });
+        if (!user) {
+            return res.status(404).json({ message: '用户不存在' });
+        }
+        res.status(200).json({ message: '用户类型更新成功', user });
+    } catch (error) {
+        console.error('更新用户类型失败:', error);
+        res.status(500).json({ message: '服务器更新用户类型失败' });
     }
-    res.status(200).json({ message: '用户类型更新成功', user });
-  } catch (error) {
-    console.error('更新用户类型失败:', error);
-    res.status(500).json({ message: '服务器更新用户类型失败' });
-  }
+});
+
+// 给用户增加订阅天数
+router.post('/users/:id/add-subscription', async (req, res) => {
+    try {
+        const token = req.headers.authorization;
+        if (token !== 'admin') {
+            return res.status(403).json({ message: '无权访问' });
+        }
+
+        const { id } = req.params;
+        const { days } = req.body;
+
+        if (!days || isNaN(days)) {
+            return res.status(400).json({ message: '请输入有效天数' });
+        }
+
+        const user = await User.findById(id);
+        if (!user) {
+            return res.status(404).json({ message: '用户不存在' });
+        }
+
+        // 计算新的到期时间
+        const now = new Date();
+        const currentExpiry = (user.subscriptionExpiry && user.subscriptionExpiry > now)
+            ? user.subscriptionExpiry
+            : now;
+
+        const newExpiry = new Date(currentExpiry.getTime() + parseInt(days) * 24 * 60 * 60 * 1000);
+        user.subscriptionExpiry = newExpiry;
+        await user.save();
+
+        res.status(200).json({ message: '订阅天数增加成功', subscriptionExpiry: user.subscriptionExpiry });
+    } catch (error) {
+        console.error('增加订阅天数失败:', error);
+        res.status(500).json({ message: '服务器增加订阅天数失败' });
+    }
 });
 
 // --- 新增：获取 COS 预签名 URL ---
@@ -187,7 +231,7 @@ router.post('/book/create', upload.none(), async (req, res) => { // 使用 uploa
         if (!coverImageUrl) {
             return res.status(400).json({ message: '缺少封面图片 URL' });
         }
-        
+
         const coverImage = coverImageUrl; // 直接使用前端提供的 URL
 
         // 查找是否已存在同名书籍
@@ -323,11 +367,17 @@ router.post('/book/createUnit', async (req, res) => {
 
             // 处理句子，填充 words 数组
             for (const sentence of sentences) {
-                const sentenceWords = sentence.text.split(' ').map(w => w.replace(/[.,?!]/g, ''));
+                // 使用更严谨的正则提取单词：
+                // 1. 按空格拆分
+                // 2. 去除单词两端的标点符号 (包括 ' " , . ! ? : ; ：等)，保留中间的 (如 he's)
+                const sentenceWords = sentence.text.split(/\s+/).map(w =>
+                    w.replace(/^[.,?!:;：' "()\[\]{}]+|[.,?!:;：' "()\[\]{}]+$/g, '')
+                );
                 sentence.words = [];
                 for (const wordText of sentenceWords) {
-                    if (!wordText || wordText.trim() === '') continue; // 跳过空或无效的字符串
-                    let word = await Word.findOne({ text: wordText.trim() });
+                    const cleanWordText = wordText.trim();
+                    if (!cleanWordText) continue; // 跳过空或无效的字符串
+                    let word = await Word.findOne({ text: cleanWordText });
                     if (!word) {
                         word = new Word({ text: wordText.trim() });
                         await word.save();
@@ -340,10 +390,11 @@ router.post('/book/createUnit', async (req, res) => {
 
             const wordIds = [];
             for (const wordText of words) {
-                if (!wordText || wordText.trim() === '') continue; // 跳过空或无效的字符串
-                let word = await Word.findOne({ text: wordText.trim() });
+                const cleanWordText = wordText ? wordText.trim().replace(/^[.,?!:;：' "()\[\]{}]+|[.,?!:;：' "()\[\]{}]+$/g, '') : '';
+                if (!cleanWordText) continue; // 跳过空或无效的字符串
+                let word = await Word.findOne({ text: cleanWordText });
                 if (!word) {
-                    word = new Word({ text: wordText.trim() });
+                    word = new Word({ text: cleanWordText });
                     await word.save();
                 }
                 wordIds.push(word._id);
@@ -361,7 +412,7 @@ router.post('/book/createUnit', async (req, res) => {
                     sentences: sentences
                 });
             }
-         }
+        }
 
         await book.save();
         res.status(200).json({ message: '课程内容保存成功!' });
@@ -392,7 +443,7 @@ router.post('/book/batchUpdateWordsHybrid', async (req, res) => {
             for (const word of unit.words) {
                 if (!word) continue; // 如果 populate 失败或 ID 无效，则跳过
                 let needsUpdate = false;
-                
+
                 // 检查音标
                 if (!word.phonetic || word.phonetic === 'N/A') {
                     needsUpdate = true;
@@ -486,10 +537,10 @@ router.post('/book/batchUpdateSentencesHybrid', async (req, res) => {
                 if (sentence.text && (!sentence.chinese || sentence.chinese === 'N/A')) {
                     const chinese = await getChineseFromYoudao(sentence.text);
                     sentence.chinese = chinese;
-
+                    console.log(sentence.text + ' ' + sentence.chinese)
                     // 更新 speakUrl
                     if (!sentence.speakUrl || sentence.speakUrl === 'N/A') {
-                        const filename = book._id + '-' + unitIndex + '-' + updatedSentenceCount ;
+                        const filename = book._id + '-' + unitIndex + '-' + updatedSentenceCount;
                         try {
                             // 调用 TTS 服务生成音频
                             await fetch(createSentenceMp3, {
@@ -517,7 +568,7 @@ router.post('/book/batchUpdateSentencesHybrid', async (req, res) => {
                     }
                 }
             }
-            unitIndex ++;
+            unitIndex++;
         }
 
         // 遍历并更新收集到的独立单词
@@ -574,6 +625,93 @@ router.post('/book/batchUpdateSentencesHybrid', async (req, res) => {
     }
 });
 
+
+
+// --- 系统配置管理 API ---
+
+// 获取系统配置
+router.get('/system-config', async (req, res) => {
+    try {
+        const { key } = req.query;
+        if (key) {
+            const config = await SystemConfig.findOne({ key });
+            return res.status(200).json(config);
+        }
+        const configs = await SystemConfig.find();
+        res.status(200).json(configs);
+    } catch (error) {
+        console.error('获取系统配置失败:', error);
+        res.status(500).json({ message: '服务器获取系统配置失败' });
+    }
+});
+
+// 设置系统配置
+router.post('/system-config', async (req, res) => {
+    try {
+        const token = req.headers.authorization;
+        if (token !== 'admin') {
+            return res.status(403).json({ message: '无权访问' });
+        }
+        const { key, value, description } = req.body;
+        if (!key || value === undefined) {
+            return res.status(400).json({ message: '缺少 key 或 value' });
+        }
+
+        const config = await SystemConfig.findOneAndUpdate(
+            { key },
+            { value, description },
+            { new: true, upsert: true }
+        );
+
+        res.status(200).json({ message: '配置保存成功', config });
+    } catch (error) {
+        console.error('保存系统配置失败:', error);
+        res.status(500).json({ message: '服务器保存系统配置失败' });
+    }
+});
+
+
+// --- 订单管理 API ---
+
+// 获取/搜索订单
+router.get('/orders', async (req, res) => {
+    try {
+        const token = req.headers.authorization;
+        if (token !== 'admin') {
+            return res.status(403).json({ message: '无权访问' });
+        }
+
+        const { orderNo, transactionId, status, query } = req.query;
+        let filter = {};
+
+        if (orderNo) filter.orderNo = orderNo;
+        if (transactionId) filter.transactionId = transactionId;
+        if (status) filter.status = status;
+
+        if (query) {
+            // 支持通过邮箱或昵称搜索关联用户
+            const users = await User.find({
+                $or: [
+                    { email: { $regex: query, $options: 'i' } },
+                    { nickname: { $regex: query, $options: 'i' } }
+                ]
+            }).select('_id');
+            const userIds = users.map(u => u._id);
+            filter.userId = { $in: userIds };
+        }
+
+        const orders = await Order.find(filter)
+            .populate('userId', 'nickname email')
+            .populate('productId', 'name')
+            .sort({ createdAt: -1 })
+            .limit(100);
+
+        res.status(200).json(orders);
+    } catch (error) {
+        console.error('获取订单失败:', error);
+        res.status(500).json({ message: '服务器获取订单失败' });
+    }
+});
 
 export default router;
 // 获取看板统计数据
@@ -654,14 +792,14 @@ router.post('/products/update', async (req, res) => {
         const promises = products.map(p =>
             Product.findOneAndUpdate(
                 { type: p.type },
-                { price: p.price },
+                { price: p.price, stripePriceId: p.stripePriceId },
                 { new: true, upsert: false } // 不创建新品种
             )
         );
 
         await Promise.all(promises);
 
-        res.status(200).json({ message: '价格更新成功' });
+        res.status(200).json({ message: '产品信息更新成功' });
 
     } catch (error) {
         console.error('更新产品价格失败:', error);
