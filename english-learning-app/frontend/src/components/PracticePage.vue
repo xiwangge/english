@@ -16,10 +16,14 @@
                     <input type="checkbox" id="toggle-phonetic" checked>
                     显示音标
                 </label>
-
                 <label>
                     <input type="checkbox" id="toggle-threeTimes">
                     单词拼写三遍
+                </label>
+
+                <label>
+                    <input type="checkbox" v-model="useIPA">
+                    国际音标
                 </label>
             </div>
 
@@ -59,7 +63,7 @@
                             :style="{ 'min-width': (word.text ? word.text.length : 0) + 'ch' }"
                         >
                             <div class="phonetic-word" v-show="isPhoneticVisible">
-                                {{ word.phonetic === 'N/A' ? '😊' : (word.phonetic || '').replace(/\//g, '') || '&nbsp;' }}
+                                {{ word.phonetic === 'N/A' ? '😊' : formatPhonetic((word.phonetic || '').replace(/\//g, '')) || '&nbsp;' }}
                             </div>
                             <span
                                 class="word-placeholder"
@@ -72,7 +76,7 @@
                     <template v-else-if="currentItem.type === 'word'">
                         <div class="word-mode-container">
                             <div class="phonetic-word" v-show="isPhoneticVisible">
-                                {{ currentItem.phonetic === 'N/A' ? '😊' : currentItem.phonetic || '&nbsp;' }}
+                                {{ currentItem.phonetic === 'N/A' ? '😊' : formatPhonetic(currentItem.phonetic) || '&nbsp;' }}
                             </div>
                             <div class="word-placeholders-wrapper">
                                 <span
@@ -100,26 +104,44 @@
                    
                    <!-- 单词模式 -->
                    <template v-else-if="currentItem.type === 'word'">
-                        <div class="word-with-pos">
-                           <!-- 加载音节时显示... -->
+                        <div class="word-interactive-container">
                            <div v-if="loadingSyllables" class="loading">正在分析音节...</div>
-                           <!-- 显示音节 -->
-                           <div v-else class="syllables-container">
-                               <span v-for="(part, index) in syllables" :key="`syllable-${index}`" class="syllable-box">
-                                   {{ part }}
-                               </span>
-                           </div>
-                           <!-- 显示音标和词性 -->
-                            <span class="phonetic">{{ currentItem.phonetic === 'N/A' ? '😊' : currentItem.phonetic.replace(/\//g, '') }}</span>
-                            <span v-if="wordAnalyses.length" class="pos" :class="getPosClass(wordAnalyses[0].pos)">{{ wordAnalyses[0].pos }}</span>
-                       </div>
+                           <template v-else>
+                               <!-- 单词主体：呈现为完整单词，但内部由可变色的音节组成 -->
+                               <div class="word-full-display">
+                                   <span v-for="(part, index) in syllables" 
+                                         :key="`syllable-text-${index}`" 
+                                         class="syllable-text"
+                                         :class="{ 'highlight': activeSyllableIndex === index }">
+                                       {{ part }}
+                                   </span>
+                               </div>
+                               <!-- 音标整体容器：外层一个 [ ]，内层是可点击的切片 -->
+                               <div class="phonetic-segments-wrapper">
+                                   <span class="phonetic-bracket">[</span>
+                                   <div class="phonetic-segments">
+                                       <span v-for="(pPart, index) in phoneticSyllables" 
+                                             :key="`phonetic-seg-${index}`"
+                                             class="phonetic-tag"
+                                             :class="{ 'active': activeSyllableIndex === index }"
+                                             @mouseenter="activeSyllableIndex = index"
+                                             @mouseleave="activeSyllableIndex = -1">
+                                           {{ formatPhonetic(pPart) }}
+                                       </span>
+                                   </div>
+                                   <span class="phonetic-bracket">]</span>
+                               </div>
+                           </template>
+                           <!-- 词性 -->
+                           <span v-if="wordAnalyses.length" class="pos" :class="getPosClass(wordAnalyses[0].pos)">{{ wordAnalyses[0].pos }}</span>
+                        </div>
                    </template>
 
                    <!-- 其他或降级情况 -->
                     <template v-else-if="!wordAnalyses.length">
                          <div class="word-with-pos">
                             <span class="word">{{ currentItem && currentItem.text }}</span>
-                            <span class="phonetic">{{ currentItem && (currentItem.phonetic === 'N/A' ? '😊' : currentItem.phonetic.replace(/\//g, '')) }}</span>
+                            <span class="phonetic">{{ currentItem && (currentItem.phonetic === 'N/A' ? '😊' : formatPhonetic(currentItem.phonetic.replace(/\//g, ''))) }}</span>
                         </div>
                     </template>
                </div>
@@ -200,6 +222,7 @@ const currentWordIndex = ref(0);
 const userInputs = ref([]);
 const isAnswerShown = ref(false);
 const isPhoneticVisible = ref(true); // 新增状态，控制音标可见性
+const useIPA = ref(false); // 新增状态，控制是否使用国际音标，默认关闭
 const isTransitioning = ref(false);
 const currentUnitId = ref(null);
 const currentBookId = ref(bookId);
@@ -208,6 +231,8 @@ const currentUnitName = ref(null);
 const wordAnalyses = ref([]); // 新增：存储单词和其词性
 const bookCredits = ref(0);
 const syllables = ref([]); // 新增：存储音节
+const phoneticSyllables = ref([]); // 新增：存储音标音节
+const activeSyllableIndex = ref(-1); // 新增：当前高亮的音节索引
 const loadingSyllables = ref(false); // 新增：控制音节加载状态
 
 // --- Computed Properties ---
@@ -278,6 +303,34 @@ function translatePos(tag) {
     if (tag.includes('Value')) return posTranslations.Value;
     return tag; // 如果没有匹配，返回原始标签
 }
+
+// --- 通俗音标格式化逻辑 ---
+const formatPhonetic = (text) => {
+    if (!text || useIPA.value) return text;
+    
+    let result = text;
+
+    // 1. 处理最基础的 IPA 专用符号替换
+    const basicMap = {
+        'ɹ': 'r',
+        'ɚ': 'ər',
+        'ɝ': 'ər',
+        'ɡ': 'g'
+    };
+    for (const [key, val] of Object.entries(basicMap)) {
+        result = result.split(key).join(val);
+    }
+
+    // 2. 智能处理 'j' (避免破坏 dʒ)
+    // 如果 j 在元音后面，通常是双元音 (如 aj -> ai)
+    result = result.replace(/([aeiouɑɔʊʌɛæɪ])j/g, '$1i');
+    
+    // 如果 j 在元音前面且不在 d 后面，通常是半元音 (如 nju -> nyu, jɪ -> yi)
+    // 这里使用 (^|[^d]) 来匹配字符串开头或非 d 字符
+    result = result.replace(/(^|[^d])j([aeiouɑɔʊʌɛæɪ])/g, '$1y$2');
+    
+    return result;
+};
 
 
 function analyzeSentence(text) {
@@ -401,7 +454,7 @@ async function playCurrentAudio() {
     try {
         //speakurl 切换线路
         setAndPlayAudio(item.speakUrl);
-        // setAndPlayAudio('http://43.173.248.180:4000/hello_welcome.mp3');
+        // setAndPlayAudio('http://180:4000/hello_welcome.mp3');
         // await playSpeech(item.text);
     } catch (primaryError) {
         console.warn(`Primary TTS failed: ${primaryError.message}. Trying backup.`);
@@ -789,27 +842,71 @@ onUnmounted(() => {
 });
 
 // --- 音节拆分逻辑 ---
-const splitWord = async (text) => {
-  if (!text) {
+const splitWord = async (item) => {
+  if (!item || !item.text) {
     syllables.value = [];
+    phoneticSyllables.value = [];
     return;
   }
   loadingSyllables.value = true;
+  activeSyllableIndex.value = -1; // 重置高亮
+
   try {
-    // 加载插件（extend 是幂等的，重复执行无副作用）
+    const text = item.text;
+    const rawPhonetic = (item.phonetic || '').replace(/\//g, '');
+    
+    // 1. 拆分单词文本音节
     nlp.extend(speechPlugin);
     const cleanedText = text.replace(/[^a-zA-Z]/g, '').toLowerCase();
-    // 执行拆分
     let doc = nlp(cleanedText);
     let result = doc.syllables();
+    
     if (result && result.length > 0 && result[0] && Array.isArray(result[0])) {
       syllables.value = result[0];
     } else {
-      syllables.value = [cleanedText]; // 如果库无法拆分，则显示原单词
+      syllables.value = [cleanedText];
     }
+
+    // 2. 智能拆分音标音节
+    let pParts = [];
+    if (rawPhonetic.includes('.')) {
+        // 如果有显式的点号分隔
+        pParts = rawPhonetic.split('.');
+    } else if (rawPhonetic.includes('ˈ') || rawPhonetic.includes('ˌ')) {
+        // 尝试按重音符号拆分 (保留符号在后一块，或者根据用户习惯处理)
+        // 这里的正则 (?=[ˈˌ]) 表示在符号前切分
+        pParts = rawPhonetic.split(/(?=[ˈˌ])/);
+    }
+
+    // 如果拆出的数量和单词音节不一致，采用比例切分法（兜底）
+    if (pParts.length !== syllables.value.length && syllables.value.length > 1) {
+        const totalP = rawPhonetic.length;
+        const totalW = text.length;
+        const newPParts = [];
+        let charCursor = 0;
+        
+        for (let i = 0; i < syllables.value.length; i++) {
+            if (i === syllables.value.length - 1) {
+                newPParts.push(rawPhonetic.substring(charCursor));
+            } else {
+                // 按单词字符比例估算音标长度
+                const ratio = syllables.value[i].length / totalW;
+                let takeLen = Math.round(ratio * totalP);
+                if (takeLen < 1) takeLen = 1;
+                newPParts.push(rawPhonetic.substring(charCursor, charCursor + takeLen));
+                charCursor += takeLen;
+            }
+        }
+        pParts = newPParts;
+    }
+
+    if (pParts.length === 0) pParts = [rawPhonetic];
+    phoneticSyllables.value = pParts;
+    
   } catch (e) {
-    console.error("音节库加载或执行失败:", e);
-    syllables.value = [cleanedText]; // 降级处理
+    console.error("音节拆分失败:", e);
+    syllables.value = [item.text];
+    phoneticSyllables.value = [(item.phonetic || '').replace(/\//g, '')];
   } finally {
     loadingSyllables.value = false;
   }
@@ -819,17 +916,19 @@ const splitWord = async (text) => {
 watch(currentItem, (newItem) => {
   // 仅在当前项是单词且答案显示时，才执行音节拆分
   if (newItem && newItem.type === 'word' && isAnswerShown.value) {
-    splitWord(newItem.text);
+    splitWord(newItem);
   }
 }, { immediate: true });
 
 // 监听答案显示状态，确保显示答案时才加载音节
 watch(isAnswerShown, (isShown) => {
     if (isShown && currentItem.value && currentItem.value.type === 'word') {
-        // 如果之前没有拆分过，或者单词变了，就重新拆分
-        if (syllables.value.join('') !== currentItem.value.text) {
-            splitWord(currentItem.value.text);
+        const currentText = currentItem.value.text;
+        if (syllables.value.join('') !== currentText) {
+            splitWord(currentItem.value);
         }
+    } else {
+        activeSyllableIndex.value = -1;
     }
 })
 
@@ -986,50 +1085,107 @@ watch(isZenMode, updateHeaderColor); // 模式变了，Header 也要变
     font-family: sans-serif;
 }
 
-/* 词性标记 */
-.word-with-pos .pos {
+/* 词性标记 (通用样式) */
+.pos {
+    display: inline-block;
     font-size: 0.75rem;
-    padding: 3px 8px;
+    padding: 3px 10px;
     border-radius: 12px;
-    color: #fff;
-    margin-top: 6px;
+    color: #ffffff !important; /* 强制保持白色 */
+    margin-top: 10px;
     font-weight: bold;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-shadow: none;
+    line-height: 1.2;
 }
 
 /* 词性颜色分类 */
-.pos-noun { background-color: #60aaf9; }
-.pos-verb { background-color: #ef4444; }
-.pos-adjective { background-color: #fbbf24; color: #333; }
-.pos-adverb { background-color: #f97316; }
-.pos-preposition { background-color: #10b981; }
-.pos-pronoun { background-color: #8b5cf6; }
-.pos-other { background-color: #6b7280; }
+.pos-noun { background-color: #60aaf9 !important; }
+.pos-verb { background-color: #ef4444 !important; }
+.pos-adjective { background-color: #fbbf24 !important; color: #333 !important; }
+.pos-adverb { background-color: #f97316 !important; }
+.pos-preposition { background-color: #10b981 !important; }
+.pos-pronoun { background-color: #8b5cf6 !important; }
+.pos-other { background-color: #6b7280 !important; }
 
 /* =========================================
-   4. 音节显示样式 (Syllables) - ✅ 找回的部分
+   4. 互动单词显示 (Word Interactive)
    ========================================= */
-.syllables-container {
+.word-interactive-container {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
+    flex-direction: column;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
+    gap: 12px;
 }
 
-.syllable-box {
-    display: inline-block;
-    padding: 6px 14px;
-    background-color: rgba(16, 185, 129, 0.12); 
-    border: 1px solid rgba(16, 185, 129, 0.2);
-    border-radius: 8px;
-    
+.word-full-display {
     font-family: "Menlo", "Monaco", "Courier New", monospace;
-    font-weight: 700;
-    font-size: 1.8rem;
+    font-size: 3rem;
+    font-weight: 800;
+    letter-spacing: -1px;
+    display: flex;
+    align-items: center;
+}
+
+.syllable-text {
     color: var(--correct-color);
-    line-height: 1.2;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    display: inline-block;
+}
+
+/* 喜庆的颜色呼应：高亮时变为亮橙/红渐变色感 */
+.syllable-text.highlight {
+    color: #ff4d4d;
+    transform: scale(1.1);
+    text-shadow: 0 0 15px rgba(255, 77, 77, 0.3);
+}
+
+.phonetic-segments-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: rgba(0,0,0,0.04);
+    padding: 2px 12px;
+    border-radius: 12px;
+    transition: all 0.3s;
+}
+
+.dark-mode .phonetic-segments-wrapper {
+    background: rgba(255,255,255,0.06);
+}
+
+.phonetic-bracket {
+    font-size: 1.4rem;
+    color: #9ca3af;
+    font-weight: 300;
+}
+
+.phonetic-segments {
+    display: flex;
+    gap: 4px; /* 音节之间的微小间距 */
+}
+
+.phonetic-tag {
+    font-family: "Lucida Sans Unicode", "Arial Unicode MS", sans-serif;
+    font-size: 1.3rem;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 6px 4px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    user-select: none;
+    min-width: 20px;
+    text-align: center;
+}
+
+.phonetic-tag:hover, .phonetic-tag.active {
+    color: #ff4d4d;
+    background-color: rgba(255, 77, 77, 0.08);
+    transform: translateY(-1px);
+}
+
+.dark-mode .phonetic-tag {
+    color: #a0aec0;
 }
 
 .loading {
