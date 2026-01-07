@@ -50,7 +50,10 @@
                         </div>
                         <div class="rank-info">
                             <div class="rank-name">{{ item.nickname || item.name }}</div>
-                            <div class="rank-score">总学分: {{ item.totalCredits || item.credits }}</div>
+                            <div class="rank-score">
+                                总学分: {{ item.totalCredits || item.credits }}
+                                <span v-if="activeTab === 'groups'" class="member-count"> | 成员: {{ item.memberCount || 0 }}</span>
+                            </div>
                         </div>
                         <svg v-if="item.rank <= 3" class="medal-icon" :class="`rank-${item.rank}`" viewBox="0 0 24 24">
                            <path d="M17 10.43V2H7v8.43c0 .35.18.68.49.86l4.51 2.6 4.51-2.6c.31-.18.49-.51.49-.86zM12 11L9 9.26 10.14 5h3.72L15 9.26 12 11zm-2 7h4v2h-4v-2zm2.5 4h-1v2h1v-2z"/>
@@ -404,13 +407,14 @@ onUnmounted(() => {
 .split-layout {
     display: flex;
     width: 100%;
-    height: 100%;
+    height: 100vh; /* 强制为视口高度 */
     font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
     /* 默认浅色背景 */
     background-color: #fff8f5;
     overflow: hidden;
     transition: background-color 0.3s ease;
-    padding:40px;
+    padding: 20px 40px; /* 稍微减小上下间距，保证显示面积 */
+    box-sizing: border-box;
 }
 
 /* 🌑 暗夜模式 - 根背景 */
@@ -429,6 +433,7 @@ onUnmounted(() => {
     position: relative;
     overflow: hidden;
     transition: background-color 0.3s ease;
+    min-height: 0; /* 防止子元素撑开容器 */
 }
 
 /* 🌑 暗夜模式 - 左侧 */
@@ -443,8 +448,9 @@ onUnmounted(() => {
     display: flex;
     flex-direction: column;
     padding: 20px;
-    overflow-y: auto;
+    overflow: hidden; /* 禁止整体滚动，改为内部滚动 */
     transition: background-color 0.3s ease;
+    min-height: 0; /* 防止内容过多撑开容器 */
     
     /* ❌ 移除了 border-left */
     border-left: none; 
@@ -465,9 +471,11 @@ canvas {
 
 .leaderboard-container {
     width: 100%;
+    flex: 1; /* 占据除 footer 外的所有空间 */
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 15px;
+    min-height: 0;
 }
 
 .trophy-icon-wrapper {
@@ -607,10 +615,30 @@ canvas {
 
 /* 排行榜列表 */
 .rank-list {
+    flex: 1; /* 自动填充剩余空间 */
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 12px;
+    overflow-y: auto; /* 仅列表部分可滚动 */
+    padding-right: 5px; /* 给滚动条留点空间 */
+    margin-bottom: 10px;
 }
+
+/* 隐藏外层滚动条，使用自定义滚动条 */
+.rank-list::-webkit-scrollbar {
+    width: 6px;
+}
+.rank-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+.rank-list::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,0.1);
+    border-radius: 10px;
+}
+.split-layout.dark .rank-list::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.1);
+}
+
 .rank-item {
     background-color: #ffffff;
     border-radius: 50px;

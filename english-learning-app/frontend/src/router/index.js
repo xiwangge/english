@@ -47,12 +47,6 @@ const routes = [
         component: () => import('../components/raceDemo.vue')
       },
       {
-        path: 'reward',
-        name: 'reward',
-        component: () => import('../components/RewardPage.vue'),
-        meta: { requiresAuth: true }
-      },
-      {
         path: 'setting',
         name: 'setting',
         component: () => import('../components/SettingPage.vue'),

@@ -30,11 +30,6 @@ import * as $OpenApi from '@alicloud/openapi-client';
 
 const resend = new Resend(process.env.EMAIL_RESEND);
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-// 月度 price_1SlquVRv2dHZgmnc5kWaEPBl.   prod_TjJX4aoSBPSKLM
-// 季度 订阅 price_1Slr1yRv2dHZgmnc7NS7gDTr
-// 季度price_1SlsE4Rv2dHZgmncqfZRKZ5f     prod_TjKt5ueOiS4Ktd
-// 年度 price_1Slr4pRv2dHZgmncWDchY4p4    prod_TjJim5lZpIosri
-// 终身 price_1SlsHzRv2dHZgmncPq8IzS1W    prod_TjKxegE7gjoXt7
 
 // 初始化客户端
 const clientConfig = new $OpenApi.Config({
@@ -681,7 +676,7 @@ app.get('/api/leaderboard/groups', auth, async (req, res) => {
     try {
         const stats = await User.aggregate([
             { $match: { group: { $ne: null } } },
-            { $group: { _id: "$group", totalCredits: { $sum: "$credits" } } },
+            { $group: { _id: "$group", totalCredits: { $sum: "$credits" }, memberCount: { $sum: 1 } } },
             { $sort: { totalCredits: -1 } }
         ]);
         const groupIds = stats.map(g => g._id);
@@ -689,17 +684,28 @@ app.get('/api/leaderboard/groups', auth, async (req, res) => {
         const myGroupId = user?.group;
         const myRank = myGroupId ? groupIds.findIndex(id => id.equals(myGroupId)) + 1 : -1;
 
-        const top10Groups = await Group.find({ '_id': { $in: groupIds.slice(0, 10) } }).lean();
-        const top10 = top10Groups.map(g => ({
-            ...g,
-            totalCredits: stats.find(s => s._id.equals(g._id)).totalCredits,
-            rank: groupIds.findIndex(id => id.equals(g._id)) + 1
-        })).sort((a, b) => a.rank - b.rank);
+        const limit = 20;
+        const top20Groups = await Group.find({ '_id': { $in: groupIds.slice(0, limit) } }).lean();
+        const top10 = top20Groups.map(g => {
+            const groupStat = stats.find(s => s._id.equals(g._id));
+            return {
+                ...g,
+                totalCredits: groupStat ? groupStat.totalCredits : 0,
+                memberCount: groupStat ? groupStat.memberCount : 0,
+                rank: groupIds.findIndex(id => id.equals(g._id)) + 1
+            };
+        }).sort((a, b) => a.rank - b.rank);
 
         let myGroup = null;
-        if (myGroupId && myRank > 10) {
+        if (myGroupId && myRank > 20) {
             const g = await Group.findById(myGroupId).lean();
-            myGroup = { ...g, totalCredits: stats.find(s => s._id.equals(myGroupId)).totalCredits, rank: myRank };
+            const myGroupStat = stats.find(s => s._id.equals(myGroupId));
+            myGroup = {
+                ...g,
+                totalCredits: myGroupStat ? myGroupStat.totalCredits : 0,
+                memberCount: myGroupStat ? myGroupStat.memberCount : 0,
+                rank: myRank
+            };
         }
         res.status(200).json({ top10, myGroup });
     } catch (error) {
@@ -712,7 +718,7 @@ app.get('/api/leaderboard/users', auth, async (req, res) => {
         const all = await User.find({}, 'nickname avatar credits').sort({ credits: -1 }).lean();
         const myRank = all.findIndex(u => u._id.toString() === req.userId) + 1;
         const me = all.find(u => u._id.toString() === req.userId);
-        const top10 = all.slice(0, 10).map((u, i) => ({ rank: i + 1, ...u }));
+        const top10 = all.slice(0, 20).map((u, i) => ({ rank: i + 1, ...u }));
         res.status(200).json({ top10, me: { rank: myRank, ...me } });
     } catch (error) {
         res.status(500).json({ message: '获取个人排行榜失败' });
@@ -723,8 +729,9 @@ app.get('/api/leaderboard/group-members', auth, async (req, res) => {
     try {
         const user = await User.findById(req.userId).select('group');
         if (!user?.group) return res.status(404).json({ message: '未加入群组' });
-        const members = await User.find({ group: user.group }, 'nickname avatar credits').sort({ credits: -1 }).lean();
-        res.status(200).json(members.map((m, i) => ({ rank: i + 1, ...m })));
+        const members = await User.find({ group: user.group }, 'nickname avatar credits').sort({ credits: -1 }).limit(50).lean();
+        const top10 = members.map((m, i) => ({ rank: i + 1, ...m }));
+        res.status(200).json({ top10 });
     } catch (error) {
         res.status(500).json({ message: '获取群内排行榜失败' });
     }

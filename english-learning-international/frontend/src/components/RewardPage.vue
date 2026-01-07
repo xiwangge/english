@@ -16,7 +16,7 @@
                 <ul class="plan-features">
                   <li>所有课程免费学</li>
                   <li>解锁全部头像</li>
-                  <li>专属学习报告</li>
+                  <li>坚持93天，英语小达人</li>
                   <li>好友邀请奖励翻倍</li>
                 </ul>
                 <button class="btn btn-primary" @click="purchaseMembership('quarterly')">立即开通</button>
@@ -31,7 +31,7 @@
                   <li>所有课程免费学</li>
                   <li>解锁全部头像</li>
                   <li>专属学习报告</li>
-                  <li>好友邀请奖励翻倍</li>
+                  <li>坚持366天，英语Master脱口而出</li>
                   <li>专属客服支持</li>
                 </ul>
                 <button class="btn btn-primary" @click="purchaseMembership('yearly')">立即开通</button>
@@ -46,7 +46,7 @@
                   <li><strong>只有499个名额</strong></li>
                   <li>永久无限制使用</li>
                   <li>未来所有新功能免费</li>
-                  <li>极致学习数据分析</li>
+                  <li>英语Master脱口而出</li>
                   <li>顶级VIP售后通道</li>
                   <li><strong>高比例分享返利</strong></li>
                 </ul>

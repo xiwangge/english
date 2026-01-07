@@ -45,9 +45,6 @@
         <a href="#" @click.prevent="navigateTo('BubbleGame')" :class="{ active: activeMenu === 'BubbleGame' }">
          <span class="icon">🎮</span> 气泡作战
        </a>
-        <a v-if="isSubscribed" href="#" @click.prevent="navigateTo('reward')" :class="{ active: activeMenu === 'reward' }">
-          <span class="icon">💰</span> 邀请奖励
-        </a>
         <a href="#" @click.prevent="goToInternationalSite">
           <span class="icon">🌍</span> 国际站
         </a>

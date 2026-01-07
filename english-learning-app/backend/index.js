@@ -1512,7 +1512,7 @@ app.get('/api/leaderboard/groups', auth, async (req, res) => {
     // 聚合管道：计算每个群组的总学分
     const groupsWithTotalCredits = await User.aggregate([
       { $match: { group: { $ne: null } } }, // 只考虑有群组的用户
-      { $group: { _id: "$group", totalCredits: { $sum: "$credits" } } },
+      { $group: { _id: "$group", totalCredits: { $sum: "$credits" }, memberCount: { $sum: 1 } } },
       { $sort: { totalCredits: -1 } }
     ]);
 
@@ -1529,34 +1529,36 @@ app.get('/api/leaderboard/groups', auth, async (req, res) => {
       currentUserGroupRank = groupIds.findIndex(id => id.equals(currentUserGroupId)) + 1;
     }
 
-    // 获取 Top 10 的群组信息
-    const top10GroupIds = groupIds.slice(0, 10);
-    const top10Groups = await Group.find({ '_id': { $in: top10GroupIds } }).lean();
+    // 获取 Top 20 的群组信息
+    const top20GroupIds = groupIds.slice(0, 20);
+    const top20Groups = await Group.find({ '_id': { $in: top20GroupIds } }).lean();
 
     // 将总学分附加到群组信息上
-    const top10Result = top10Groups.map(group => {
+    const top20Result = top20Groups.map(group => {
       const stats = groupsWithTotalCredits.find(g => g._id.equals(group._id));
       return {
         ...group,
         totalCredits: stats ? stats.totalCredits : 0,
+        memberCount: stats ? stats.memberCount : 0,
         rank: groupIds.findIndex(id => id.equals(group._id)) + 1
       };
     }).sort((a, b) => a.rank - b.rank); // 确保排序正确
 
     let myGroupInfo = null;
-    // 如果当前用户的群组不在 Top 10 且存在
-    if (currentUserGroupId && currentUserGroupRank > 10) {
+    // 如果当前用户的群组不在 Top 20 且存在
+    if (currentUserGroupId && currentUserGroupRank > 20) {
       const myGroup = await Group.findById(currentUserGroupId).lean();
       const myGroupStats = groupsWithTotalCredits.find(g => g._id.equals(currentUserGroupId));
       myGroupInfo = {
         ...myGroup,
         totalCredits: myGroupStats ? myGroupStats.totalCredits : 0,
+        memberCount: myGroupStats ? myGroupStats.memberCount : 0,
         rank: currentUserGroupRank
       };
     }
 
     res.status(200).json({
-      top10: top10Result,
+      top10: top20Result,
       myGroup: myGroupInfo
     });
 
@@ -1584,13 +1586,13 @@ app.get('/api/leaderboard/users', auth, async (req, res) => {
       ...me
     };
 
-    // 获取 Top 10 用户
-    const top10 = allUsersRanked.slice(0, 10).map((user, index) => ({
+    // 获取 Top 20 用户
+    const top20 = allUsersRanked.slice(0, 20).map((user, index) => ({
       rank: index + 1,
       ...user
     }));
 
-    res.status(200).json({ top10, me: myInfo });
+    res.status(200).json({ top10: top20, me: myInfo });
   } catch (error) {
     console.error('获取个人排行榜失败:', error);
     res.status(500).json({ message: '服务器获取个人排行榜失败' });
@@ -1619,13 +1621,13 @@ app.get('/api/leaderboard/group-members', auth, async (req, res) => {
       ...me
     };
 
-    // 4. 获取群内 Top 10
-    const top10InGroup = groupMembers.slice(0, 10).map((member, index) => ({
+    // 4. 获取群内 Top 50
+    const top50InGroup = groupMembers.slice(0, 50).map((member, index) => ({
       rank: index + 1,
       ...member
     }));
 
-    res.status(200).json({ top10: top10InGroup, me: myInfo });
+    res.status(200).json({ top10: top50InGroup, me: myInfo });
 
   } catch (error) {
     console.error('获取群内排行榜失败:', error);

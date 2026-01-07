@@ -170,7 +170,7 @@
     </footer>
 </div>
 
-<input type="text" id="hidden-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+<input type="text" id="hidden-input" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" dir="ltr">
 </template>
 
 <script setup>
@@ -234,6 +234,53 @@ const syllables = ref([]); // 新增：存储音节
 const phoneticSyllables = ref([]); // 新增：存储音标音节
 const activeSyllableIndex = ref(-1); // 新增：当前高亮的音节索引
 const loadingSyllables = ref(false); // 新增：控制音节加载状态
+
+// --- 进度持久化逻辑 ---
+const saveProgress = () => {
+    if (!currentBookId.value || !currentUnitId.value) return;
+    const key = `practice_progress_${currentBookId.value}_${currentUnitId.value}`;
+    localStorage.setItem(key, JSON.stringify({
+        currentItemIndex: currentItemIndex.value,
+        activeItemIndex: activeItemIndex.value,
+        userInputs: userInputs.value
+    }));
+};
+
+const loadSavedProgress = () => {
+    if (!currentBookId.value || !currentUnitId.value) return false;
+    const key = `practice_progress_${currentBookId.value}_${currentUnitId.value}`;
+    const saved = localStorage.getItem(key);
+    if (saved) {
+        try {
+            const data = JSON.parse(saved);
+            if (typeof data.currentItemIndex === 'number' && practiceQueue.value.length > 0) {
+                currentItemIndex.value = Math.min(data.currentItemIndex, practiceQueue.value.length - 1);
+                activeItemIndex.value = Math.min(data.activeItemIndex ?? data.currentItemIndex, practiceQueue.value.length - 1);
+                
+                if (data.userInputs && data.userInputs.length === practiceQueue.value.length) {
+                    userInputs.value = data.userInputs;
+                } else {
+                    userInputs.value = new Array(practiceQueue.value.length).fill(null);
+                }
+                return true;
+            }
+        } catch (e) {
+            console.error('恢复进度失败:', e);
+        }
+    }
+    return false;
+};
+
+const clearSavedProgress = () => {
+    if (!currentBookId.value || !currentUnitId.value) return;
+    const key = `practice_progress_${currentBookId.value}_${currentUnitId.value}`;
+    localStorage.removeItem(key);
+};
+
+// 监听进度变化并保存
+watch([currentItemIndex, activeItemIndex, userInputs], () => {
+    saveProgress();
+}, { deep: true });
 
 // --- Computed Properties ---
 const currentItem = computed(() => practiceQueue.value[activeItemIndex.value]);
@@ -490,7 +537,9 @@ async function loadNextUnit() {
             return;
         }
 
-        resetStateForNewUnit();
+        if (!loadSavedProgress()) {
+            resetStateForNewUnit();
+        }
         await nextTick();
         renderUI();
         playCurrentAudio();
@@ -540,6 +589,7 @@ async function markUnitAsComplete() {
     } catch (error) {
         console.error('标记完成失败:', error);
     } finally {
+        clearSavedProgress();
         loadNextUnit();
     }
 }
@@ -659,11 +709,25 @@ function toggleAnswerDisplay() {
 
 function focusHiddenInput() {
     if (!hiddenInput.value) return;
+
+    // --- 核心修复：防止 iPad 倒着输入 ---
+    // 如果当前已经是聚焦状态且值没变，则不要去操作 .value 或 .select()
+    // 频繁设置 .value 在某些 iOS 版本会导致光标强制回到 index 0
+    const targetValue = isAnswerShown.value ? '' : (userInputs.value[activeItemIndex.value]?.[currentWordIndex.value] || '');
+    
+    if (document.activeElement === hiddenInput.value) {
+        if (hiddenInput.value.value === targetValue) {
+            return; // 已经同步且聚焦，不执行任何操作
+        }
+    }
+
     hiddenInput.value.focus();
     if (isAnswerShown.value) {
         hiddenInput.value.value = '';
     } else {
-        hiddenInput.value.value = userInputs.value[activeItemIndex.value]?.[currentWordIndex.value] || '';
+        hiddenInput.value.value = targetValue;
+        // 只有在非输入状态（切换单词、或者刚刚报错、或者刚刚点击进来）时才全选
+        // 如果是正在输入，则保持光标在末尾
         hiddenInput.value.select();
     }
 }
@@ -1330,7 +1394,18 @@ watch(isZenMode, updateHeaderColor); // 模式变了，Header 也要变
 .practice-container.zen-mode .practice-header { background-color: transparent; border-bottom: none; }
 
 /* 隐藏元素 */
-#hidden-input { position: absolute; opacity: 0; top: -1000px; }
+/* 隐藏元素且保持光标稳定性 (Fixed for iPad) */
+#hidden-input { 
+    position: fixed; 
+    left: -100px;
+    top: 50%;
+    width: 1px;
+    height: 1px;
+    opacity: 0; 
+    pointer-events: none;
+    z-index: -1;
+    font-size: 16px; /* 防止 iOS 自动放大 */
+}
 
 /* 错误抖动 */
 .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }

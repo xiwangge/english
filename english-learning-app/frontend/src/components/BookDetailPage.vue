@@ -56,7 +56,7 @@
             <ul>
               <li><strong>版本:</strong> {{ bookData.edition }}</li>
               <li><strong>出版社:</strong> {{ bookData.publisher }}</li>
-              <li><strong>建议时长:</strong> {{ bookData.studyTime }} 分钟</li>
+              <li><strong>建议时长:</strong> {{ bookData.studyTime }} 小时</li>
               <li><strong>每章获得学分:</strong> {{ bookData.credits }}</li>
             </ul>
           </div>
