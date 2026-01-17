@@ -107,6 +107,30 @@
               </div>
 
               <div class="card setting-card">
+                <h3 class="card-title">发音老师偏好</h3>
+                <p class="status-text">进行单词练习时，系统将使用您选择的老师声音为您朗读。</p>
+                <div class="teacher-grid-wrapper">
+                  <div class="teacher-option" 
+                       :class="{ 'selected': selectedTeacherId === null }"
+                       @click="selectTeacher(null)">
+                    <div class="teacher-avatar-mini" style="background-image: url('/images/ai.png')" @click.stop="playTeacherExample(null)"></div>
+                    <div class="teacher-name-mini">Sydney</div>
+                    <div class="teacher-desc-mini">系统预设发音</div>
+                  </div>
+                  <div v-for="teacher in teachers" :key="teacher._id"
+                       class="teacher-option"
+                       :class="{ 'selected': selectedTeacherId === teacher._id }"
+                       @click="selectTeacher(teacher._id)">
+                    <div class="teacher-avatar-mini" :style="{ backgroundImage: `url('${teacher.avatar || '/images/ai.png'}')` }" @click.stop="playTeacherExample(teacher)"></div>
+                    <div class="teacher-name-mini">{{ teacher.name }}</div>
+                  </div>
+                </div>
+                <div class="actions-row">
+                  <button class="btn btn-primary" @click="savePreferredTeacher">确认选择</button>
+                </div>
+              </div>
+
+              <div class="card setting-card">
                 <h3 class="card-title">我的班级/群</h3>
                 <div v-if="userStore.user.group">
                   <p>你已加入班级/群: {{ userStore.user.group.name }}</p>
@@ -215,6 +239,19 @@ const newNickname = ref('');
 const email = ref('');
 const verificationCode = ref('');
 const isAvatarSectionCollapsed = ref(true); // 控制头像区域折叠
+const teachers = ref([]);
+const selectedTeacherId = ref(userStore.user.preferredTeacher?._id || null);
+const teacherAudio = new Audio();
+
+function playTeacherExample(teacher) {
+  const exampleSentence = teacher ? teacher.exampleSentence : 'Sydney';
+  
+  // 如果 exampleSentence 是完整的 URL 或路径
+  if (exampleSentence) {
+    teacherAudio.src = exampleSentence;
+    teacherAudio.play().catch(e => console.error('播放示例音频失败:', e));
+  }
+}
 
 // --- 班级功能所需变量 ---
 const groupSearchQuery = ref('');
@@ -243,6 +280,7 @@ onMounted(() => {
     if (fetchUserInfo) {
         fetchUserInfo();
     }
+    fetchTeachers();
     watch(() => userStore.theme, () => {
         updateHeaderColor();
     });
@@ -292,6 +330,13 @@ watch(() => userStore.user.group, (newGroupInfo) => {
     newGroupSlogan.value = newGroupInfo.slogan;
   }
 }, { immediate: true, deep: true });
+
+// 监听发音老师变化
+watch(() => userStore.user.preferredTeacher, (newTeacher) => {
+  if (newTeacher) {
+    selectedTeacherId.value = newTeacher._id || newTeacher;
+  }
+}, { immediate: true });
 
 const maskedEmail = computed(() => {
   const email = userStore.user.email;
@@ -645,6 +690,43 @@ async function bindEmail() {
     toast.error('网络错误，邮箱绑定失败');
   }
 }
+async function fetchTeachers() {
+  try {
+    const response = await fetch('/api/teachers', {
+      headers: { 'Authorization': localStorage.getItem('token') }
+    });
+    if (response.ok) {
+      teachers.value = await response.json();
+    }
+  } catch (error) {
+    console.error('获取老师列表失败:', error);
+  }
+}
+
+function selectTeacher(id) {
+  selectedTeacherId.value = id;
+}
+
+async function savePreferredTeacher() {
+  try {
+    const response = await fetch('/api/user/preferred-teacher', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': localStorage.getItem('token')
+      },
+      body: JSON.stringify({ teacherId: selectedTeacherId.value })
+    });
+    if (response.ok) {
+      toast.success('发音老师设置成功！');
+      if (fetchUserInfo) await fetchUserInfo();
+    } else {
+      toast.error('设置失败');
+    }
+  } catch (error) {
+    toast.error('网络错误');
+  }
+}
 </script>
 
 <style scoped>
@@ -917,6 +999,84 @@ async function bindEmail() {
   color: white;
 }
 
+/* --- 发音老师选择样式 --- */
+.teacher-grid-wrapper {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 640px) {
+  .teacher-grid-wrapper {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.teacher-option {
+  border: 2px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background-color: var(--bg-light);
+}
+
+.dark-mode .teacher-option {
+  border-color: var(--border-dark);
+  background-color: var(--input-bg-dark);
+}
+
+.teacher-option:hover {
+  border-color: var(--primary-fade);
+}
+
+.teacher-option.selected {
+  border-color: var(--primary-color);
+  background-color: var(--primary-light);
+}
+
+.dark-mode .teacher-option.selected {
+  background-color: rgba(244, 140, 37, 0.2);
+}
+
+.teacher-avatar-mini {
+  width: 100%; /* 增加宽度以显示全图 */
+  height: 6rem;
+  border-radius: var(--radius-md); /* 不再是圆形 */
+  background-size: contain; /* 显示全图 */
+  background-repeat: no-repeat;
+  background-position: center;
+  margin: 0 auto 0.5rem;
+  background-color: rgba(0,0,0,0.03); /* 为了 contain 效果好看点加个底色 */
+}
+
+.teacher-name-mini {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-main-light);
+}
+
+.dark-mode .teacher-name-mini {
+  color: var(--text-main-dark);
+}
+
+.teacher-desc-mini {
+  font-size: 0.75rem;
+  color: var(--text-muted-light);
+  margin-top: 0.25rem;
+  font-style: italic;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.dark-mode .teacher-desc-mini {
+  color: var(--text-muted-dark);
+}
+
 /* --- 班级功能专属样式 --- */
 .sub-title {
   font-size: 1rem;
@@ -1155,5 +1315,65 @@ async function bindEmail() {
   justify-content: flex-end;
   gap: 1rem;
   padding-top: 2rem;
+}
+
+/* 📱 移动端/平板适应 (Mobile & Tablet Adaptation) */
+@media (max-width: 1100px) {
+    .content-wrapper {
+        padding: 10px;
+    }
+
+    .settings-main {
+        padding-top: 1rem;
+    }
+
+    .page-title {
+        font-size: 1.75rem;
+        min-width: auto;
+    }
+
+    .card {
+        padding: 1rem;
+    }
+
+    .credit-banner {
+        padding: 1rem;
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .credit-info {
+        text-align: center;
+    }
+
+    .form-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+
+    .btn {
+        width: 100%;
+        padding: 0;
+    }
+
+    .avatar-selection-row {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .avatar-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .actions-row, .footer-actions {
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 640px) {
+    .avatar-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
 }
 </style>

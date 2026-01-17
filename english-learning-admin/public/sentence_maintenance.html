@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <title>句子音频维护</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f7f9fc;
+            margin: 0;
+            padding: 40px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #2d3748;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            flex: 1;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        select,
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #edf2f7;
+        }
+
+        th {
+            background-color: #f8fafc;
+            color: #718096;
+            font-weight: 600;
+        }
+
+        .text-cell {
+            width: 40%;
+        }
+
+        .url-cell {
+            width: 40%;
+        }
+
+        .action-cell {
+            width: 20%;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: opacity 0.2s;
+        }
+
+        .btn-primary {
+            background-color: #4299e1;
+            color: white;
+        }
+
+        .btn-success {
+            background-color: #48bb78;
+            color: white;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .btn:disabled {
+            background-color: #cbd5e0;
+            cursor: not-allowed;
+        }
+
+        audio {
+            height: 30px;
+            vertical-align: middle;
+        }
+
+        .status-tag {
+            font-size: 0.75rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 8px;
+        }
+
+        .status-missing {
+            background-color: #fed7d7;
+            color: #9b2c2c;
+        }
+
+        .id-label {
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: #a0aec0;
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>句子音频维护</h1>
+
+        <div class="card">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="bookSelect">选择书籍</label>
+                    <select id="bookSelect">
+                        <option value="">加载中...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="unitSelect">选择章节/单元</label>
+                    <select id="unitSelect" disabled>
+                        <option value="">请先选择书籍</option>
+                    </select>
+                </div>
+            </div>
+            <button id="loadBtn" class="btn btn-primary" disabled>刷新列表</button>
+        </div>
+
+        <div class="card" id="sentenceCard" style="display: none;">
+            <h2 id="tableTitleText">章节内容</h2>
+            <table id="sentenceTable">
+                <thead>
+                    <tr>
+                        <th>句子文本</th>
+                        <th>中文翻译</th>
+                        <th>音频 URL (speakUrl)</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="sentenceList">
+                    <!-- 动态加载 -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let currentBookId = '';
+        let currentUnitName = '';
+        let allUnitData = [];
+
+        // 初始化：加载书籍列表
+        async function fetchBooks() {
+            try {
+                const res = await fetch('/api/book/list');
+                const books = await res.json();
+                const select = document.getElementById('bookSelect');
+                select.innerHTML = '<option value="">-- 请选择书籍 --</option>';
+                books.forEach(b => {
+                    const opt = document.createElement('option');
+                    opt.value = b._id;
+                    opt.textContent = b.bookName;
+                    select.appendChild(opt);
+                });
+            } catch (err) {
+                alert('获取书籍列表失败');
+            }
+        }
+
+        // 监听书籍选择
+        document.getElementById('bookSelect').addEventListener('change', async (e) => {
+            currentBookId = e.target.value;
+            const unitSelect = document.getElementById('unitSelect');
+            const loadBtn = document.getElementById('loadBtn');
+
+            if (!currentBookId) {
+                unitSelect.disabled = true;
+                loadBtn.disabled = true;
+                return;
+            }
+
+            unitSelect.innerHTML = '<option value="">加载中...</option>';
+            try {
+                const res = await fetch(`/api/book/getUints?bookId=${currentBookId}`);
+                allUnitData = await res.json();
+                unitSelect.innerHTML = '<option value="">-- 请选择章节 --</option>';
+                allUnitData.forEach(u => {
+                    const opt = document.createElement('option');
+                    opt.value = u.unit;
+                    opt.textContent = u.unit;
+                    unitSelect.appendChild(opt);
+                });
+                unitSelect.disabled = false;
+                loadBtn.disabled = false;
+            } catch (err) {
+                alert('获取章节失败');
+            }
+        });
+
+        // 刷新列表按钮
+        document.getElementById('loadBtn').addEventListener('click', () => {
+            currentUnitName = document.getElementById('unitSelect').value;
+            if (!currentUnitName) {
+                alert('请选择章节');
+                return;
+            }
+            renderSentences();
+        });
+
+        function renderSentences() {
+            const unit = allUnitData.find(u => u.unit === currentUnitName);
+            if (!unit) return;
+
+            document.getElementById('sentenceCard').style.display = 'block';
+            document.getElementById('tableTitleText').textContent = `${currentUnitName} - 句子列表`;
+
+            const tbody = document.getElementById('sentenceList');
+            tbody.innerHTML = '';
+
+            unit.sentences.forEach((s, index) => {
+                const tr = document.createElement('tr');
+
+                const isNA = !s.speakUrl || s.speakUrl === 'N/A';
+                const statusHtml = isNA ? '<span class="status-tag status-missing">缺失音频</span>' : '';
+
+                tr.innerHTML = `
+                    <td class="text-cell" style="width: 25%;">
+                        <div>${s.text}</div>
+                        ${statusHtml}
+                        <span class="id-label">ID: ${s._id}</span>
+                    </td>
+                    <td style="width: 25%;">
+                        <input type="text" value="${s.chinese || ''}" id="chinese-${s._id}" placeholder="中文翻译">
+                    </td>
+                    <td class="url-cell" style="width: 35%;">
+                        <input type="text" value="${s.speakUrl || ''}" id="input-${s._id}" placeholder="https://...">
+                        <div style="margin-top: 5px;">
+                            ${s.speakUrl && s.speakUrl !== 'N/A' ? `<audio controls src="${s.speakUrl}"></audio>` : ''}
+                        </div>
+                    </td>
+                    <td class="action-cell" style="width: 15%;">
+                        <button class="btn btn-success" onclick="updateSentence('${s._id}')">更新</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function updateSentence(sentenceId) {
+            const input = document.getElementById(`input-${sentenceId}`);
+            const chineseInput = document.getElementById(`chinese-${sentenceId}`);
+            const newUrl = input.value.trim();
+            const newChinese = chineseInput.value.trim();
+
+            try {
+                const res = await fetch(`/api/book/${currentBookId}/sentence/${sentenceId}/update`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'admin'
+                    },
+                    body: JSON.stringify({
+                        speakUrl: newUrl,
+                        chinese: newChinese
+                    })
+                });
+
+                if (res.ok) {
+                    alert('更新成功');
+                    // 更新本地状态，刷新音频播放器
+                    const unit = allUnitData.find(u => u.unit === currentUnitName);
+                    const sentence = unit.sentences.find(s => s._id === sentenceId);
+                    sentence.speakUrl = newUrl;
+                    sentence.chinese = newChinese;
+                    renderSentences();
+                } else {
+                    const data = await res.json();
+                    alert('更新失败: ' + (data.message || '未知错误'));
+                }
+            } catch (err) {
+                alert('网络错误');
+            }
+        }
+
+        window.onload = fetchBooks;
+    </script>
+</body>
+
+</html>

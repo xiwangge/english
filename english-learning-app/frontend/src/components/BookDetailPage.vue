@@ -296,4 +296,53 @@ onUnmounted(() => {
     color: var(--primary-color);
     border-bottom-color: var(--primary-color);
 }
+
+/* 📱 移动端适应 (Mobile Adaptation) */
+@media (max-width: 1100px) {
+    .book-page-container {
+        padding: 0; /* 在移动端取消大容器内边距 */
+    }
+
+    .book-detail-layout {
+        padding: 0;
+    }
+
+    .book-hero-section {
+        height: 180px;
+    }
+
+    .book-hero-image img {
+        height: 180px;
+    }
+
+    .book-header {
+        padding: 15px;
+    }
+
+    .book-header h2 {
+        font-size: 1.5rem;
+    }
+
+    .book-content-layout {
+        flex-direction: column; /* 垂直堆放 */
+        padding: 15px;
+        gap: 20px;
+    }
+
+    .book-detail-main, .book-detail-sidebar {
+        width: 100%;
+    }
+
+    .book-detail-sidebar {
+        order: -1; /* 将“继续学习”按钮提到上面 */
+    }
+
+    .chapter-list {
+        max-height: none; /* 列表展开 */
+    }
+
+    .chapter-item {
+        padding: 12px;
+    }
+}
 </style>

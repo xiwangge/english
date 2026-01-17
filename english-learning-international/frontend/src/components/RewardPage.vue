@@ -1150,4 +1150,46 @@ async function confirmPayment() {
     padding: 0.4rem 1rem;
     font-size: 0.75rem;
 }
+
+/* 📱 手机端适配 */
+@media (max-width: 768px) {
+  .section-title {
+    font-size: 1.25rem;
+  }
+
+  .card {
+    padding: 1.25rem;
+  }
+
+  .invitation-header {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+
+  .invitation-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .payment-info-box {
+    flex-direction: column;
+    gap: 15px;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  .btn-sm {
+    width: 100%;
+  }
+
+  .stats-grid {
+    padding: 1rem;
+    gap: 0.75rem;
+  }
+
+  .stat-value {
+    font-size: 1.25rem;
+  }
+}
 </style>

@@ -169,8 +169,10 @@
             <a href="/dashboard.html" target="_blank">查看监控看板</a>
             <hr>
             <h2>课程管理</h2>
-            <a href="/update_book.html" target="_blank">课程维护</a> |
-            <a href="/words.html" target="_blank">单词库维护 (翻译/音标)</a>
+            <a href="/update_book.html" target="_blank">课程内容上传维护</a> |
+            <a href="/sentence_maintenance.html" target="_blank">句子音频链接维护</a> |
+            <a href="/words.html" target="_blank">单词库维护 (翻译/音标)</a> |
+            <a href="/teachers.html" target="_blank">发音老师管理</a>
             <hr>
             <h2>价格管理</h2>
             <a href="/products.html" target="_blank">设置会员价格</a>
@@ -180,11 +182,7 @@
             <a href="/withdrawals.html" target="_blank">提现申请处理</a>
             <hr>
             <h2>用户管理</h2>
-            <div class="actions">
-                <input type="text" id="search-query" placeholder="按昵称或邮箱搜索用户">
-                <button onclick="searchUser()">搜索</button>
-            </div>
-            <div id="user-list"></div>
+            <a href="/users.html" target="_blank">用户列表与权限管理 (支持分页)</a>
         </div>
 
         <div class="card">
@@ -199,121 +197,6 @@
     </div>
 
     <script>
-        async function searchUser() {
-            const query = document.getElementById('search-query').value;
-            if (!query.trim()) {
-                alert('请输入搜索关键词');
-                return;
-            }
-            try {
-                const response = await fetch(`/api/users/search?query=${encodeURIComponent(query)}`, {
-                    headers: { 'Authorization': 'admin' }
-                });
-                const users = await response.json();
-                const userList = document.getElementById('user-list');
-                userList.innerHTML = '';
-                if (users.length === 0) {
-                    userList.innerHTML = '<p>未找到用户</p>';
-                    return;
-                }
-                users.forEach(user => {
-                    const item = document.createElement('div');
-                    item.className = 'user-management-item';
-
-                    const isVip = user.subscriptionExpiry && new Date(user.subscriptionExpiry) > new Date();
-                    const expiryDate = user.subscriptionExpiry ? new Date(user.subscriptionExpiry).toLocaleDateString() : '未开通';
-
-                    item.innerHTML = `
-                        <div class="user-info-row">
-                            <div>
-                                <span class="nickname">${user.nickname}</span>
-                                <span class="badge ${isVip ? 'badge-vip' : 'badge-none'}">${isVip ? 'VIP' : '普通'}</span>
-                                <div style="font-size: 0.8rem; color: #666;">${user.email || '无邮箱'}</div>
-                            </div>
-                            <div>
-                                <select id="userType-${user._id}">
-                                    <option value="user" ${user.userType === 'user' ? 'selected' : ''}>用户</option>
-                                    <option value="admin" ${user.userType === 'admin' ? 'selected' : ''}>管理员</option>
-                                    <option value="support" ${user.userType === 'support' ? 'selected' : ''}>客服</option>
-                                </select>
-                                <button onclick="updateUserType('${user._id}')">更新</button>
-                            </div>
-                        </div>
-                        <div class="user-details">
-                            <span class="stat-badge">学分: <strong>${user.credits || 0}</strong></span>
-                            <span class="stat-badge">金币: <strong>${user.golds || 0}</strong></span>
-                            <span>会员有效期: <strong>${expiryDate}</strong></span>
-                            <span>注册时间: ${new Date(user.createdAt).toLocaleDateString()}</span>
-                        </div>
-                        <div class="subscription-actions">
-                            <span style="font-size: 0.875rem; color: #374151;">手动增加订阅:</span>
-                            <input type="number" id="add-days-${user._id}" value="30" min="1">
-                            <span>天</span>
-                            <button style="padding: 0.25rem 0.75rem; font-size: 0.875rem;" onclick="addSubscription('${user._id}')">确认增加</button>
-                        </div>
-                    `;
-                    userList.appendChild(item);
-                });
-            } catch (error) {
-                console.error('搜索用户失败:', error);
-                alert('搜索用户失败');
-            }
-        }
-
-        async function updateUserType(id) {
-            const userType = document.getElementById(`userType-${id}`).value;
-            try {
-                const response = await fetch(`/api/users/${id}/userType`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'admin'
-                    },
-                    body: JSON.stringify({ userType })
-                });
-                if (response.ok) {
-                    alert('用户类型更新成功');
-                    searchUser(); // 刷新列表
-                } else {
-                    alert('更新失败');
-                }
-            } catch (error) {
-                console.error('更新用户类型失败:', error);
-                alert('更新用户类型失败');
-            }
-        }
-
-        async function addSubscription(id) {
-            const days = document.getElementById(`add-days-${id}`).value;
-            if (!days || days <= 0) {
-                alert('请输入有效天数');
-                return;
-            }
-            if (!confirm(`确定要为该用户增加 ${days} 天订阅吗？`)) return;
-
-            try {
-                const response = await fetch(`/api/users/${id}/add-subscription`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'admin'
-                    },
-                    body: JSON.stringify({ days })
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    alert('订阅天数增加成功');
-                    searchUser(); // 刷新列表查看最新有效期
-                } else {
-                    const err = await response.json();
-                    alert('增加失败: ' + err.message);
-                }
-            } catch (error) {
-                console.error('增加订阅天数失败:', error);
-                alert('网络错误，请稍后重试');
-            }
-        }
-
         async function fetchMessages() {
             try {
                 const response = await fetch('/api/messagesNeedRead');

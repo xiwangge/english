@@ -55,6 +55,20 @@
                                 <span v-if="activeTab === 'groups'" class="member-count"> | 成员: {{ item.memberCount || 0 }}</span>
                             </div>
                         </div>
+                        <!-- 加入按钮逻辑优化 -->
+                        <template v-if="activeTab === 'groups'">
+                            <button 
+                                v-if="!userStore.user.group || (userStore.user.group._id !== item._id && userStore.user.group !== item._id)" 
+                                class="join-btn" 
+                                :class="{ 'disabled-btn': userStore.user.group }"
+                                :title="userStore.user.group ? '您已加入其他班级' : '点击加入'"
+                                @click.stop="joinGroup(item._id)"
+                            >
+                                加入
+                            </button>
+                            <span v-else class="joined-tag">已在群</span>
+                        </template>
+
                         <svg v-if="item.rank <= 3" class="medal-icon" :class="`rank-${item.rank}`" viewBox="0 0 24 24">
                            <path d="M17 10.43V2H7v8.43c0 .35.18.68.49.86l4.51 2.6 4.51-2.6c.31-.18.49-.51.49-.86zM12 11L9 9.26 10.14 5h3.72L15 9.26 12 11zm-2 7h4v2h-4v-2zm2.5 4h-1v2h1v-2z"/>
                         </svg>
@@ -66,6 +80,10 @@
             </div>
 
             <div class="site-footer">
+                <div class="data-attribution">
+                    数据来源声明：本站部分中文翻译及拼音数据参考了 <a href="https://www.mdbg.net/chinese/dictionary?page=cedict" target="_blank">CC-CEDICT</a> 词典项目。
+                    该数据基于 <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank">CC BY-SA 4.0</a> 授权。感谢 MDBG 及其社区对开源中文教育的贡献。
+                </div>
                 <a href="https://beian.miit.gov.cn" target="_blank" rel="noopener noreferrer">
                     备案/许可证编号 津ICP备2025041641号
                 </a>
@@ -78,6 +96,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed, inject, watch } from 'vue';
 import { userStore } from '../store/user.js'; 
+import { useToast } from 'vue-toastification';
 
 const canvasRef = ref(null);
 let animationFrameId = null;
@@ -378,6 +397,34 @@ function switchTab(tab) {
   fetchLeaderboardData();
 }
 
+const toast = useToast();
+const fetchUserInfo = inject('fetchUserInfo');
+
+async function joinGroup(groupId) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        userStore.triggerLoginModal();
+        return;
+    }
+    try {
+        const response = await fetch(`/api/groups/${groupId}/join`, {
+            method: 'POST',
+            headers: { 'Authorization': token }
+        });
+        const data = await response.json();
+        if (response.ok) {
+            toast.success('成功加入班级！');
+            if (fetchUserInfo) await fetchUserInfo();
+            fetchLeaderboardData();
+        } else {
+            toast.error(data.message || '加入失败');
+        }
+    } catch (error) {
+        console.error('加入班级请求失败:', error);
+        toast.error('请求失败，请稍后重试');
+    }
+}
+
 onUnmounted(() => {
     const setHeaderBgColor = inject('setHeaderBgColor');
     if (setHeaderBgColor) setHeaderBgColor('transparent');
@@ -641,6 +688,50 @@ canvas {
     box-shadow: 0 2px 8px rgba(0,0,0,0.03);
     border: 1px solid #f5f5f5;
     transition: background-color 0.3s ease, border-color 0.3s ease;
+    position: relative;
+}
+
+.join-btn {
+    margin-left: auto;
+    margin-right: 10px;
+    background-color: #ff8a65;
+    color: white;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    z-index: 2;
+}
+
+.join-btn:hover {
+    background-color: #ff7043;
+    transform: scale(1.05);
+}
+
+.join-btn.disabled-btn {
+    background-color: #ccc;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.join-btn.disabled-btn:hover {
+    background-color: #ccc;
+    transform: none;
+}
+
+.joined-tag {
+    margin-left: auto;
+    margin-right: 10px;
+    background-color: #dbece5;
+    color: #2c7a7b;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
 }
 
 /* 🌑 暗夜模式 - 列表项 */
@@ -713,12 +804,27 @@ canvas {
 /* 底部备案信息样式 */
 .site-footer {
     margin-top: auto;
-    padding-top: 30px;
-    padding-bottom: 10px;
+    padding-top: 20px;
+    padding-bottom: 20px;
     text-align: center;
-    font-size: 12px;
-    color: #a1887f; /* 设置默认文字颜色 */
-    line-height: 1.6;
+    font-size: 11px;
+    color: #a1887f;
+    line-height: 1.8;
+}
+
+.data-attribution {
+    margin-bottom: 8px;
+    opacity: 0.8;
+}
+
+.data-attribution a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.split-layout.dark-mode .site-footer {
+    color: #a0aec0;
 }
 
 .site-footer a {
@@ -738,5 +844,81 @@ canvas {
 }
 .split-layout.dark-mode .site-footer a:hover {
     color: #ed8936;
+}
+
+/* =========================================
+   📱 移动端适应 (Mobile Adaptation)
+   ========================================= */
+@media (max-width: 1100px) {
+    .split-layout {
+        flex-direction: column;
+        padding: 10px;
+        height: auto;
+        overflow-y: auto;
+    }
+
+    .left-panel {
+        display: none !important; /* 手机端隐藏左侧企鹅画布 */
+    }
+
+    .right-panel {
+        flex: none;
+        width: 100%;
+        padding: 10px;
+        height: auto;
+        overflow: visible;
+    }
+
+    .trophy-icon {
+        width: 60px;
+        height: 60px;
+    }
+
+    .tabs {
+        margin-bottom: 15px;
+    }
+
+    .tab-item {
+        font-size: 13px;
+        padding: 10px 0;
+    }
+
+    .my-rank-card {
+        padding: 15px;
+        border-radius: 15px;
+    }
+
+    .my-rank-info .group-welcome {
+        font-size: 16px;
+    }
+
+    .monster-avatar {
+        width: 60px;
+        height: 60px;
+    }
+
+    .rank-list {
+        overflow-y: visible; /* 手机端随页面一起滚动 */
+        gap: 8px;
+    }
+
+    .rank-item {
+        padding: 8px 15px;
+        border-radius: 40px;
+    }
+
+    .rank-number {
+        font-size: 18px;
+        width: 30px;
+    }
+
+    .user-avatar {
+        width: 35px;
+        height: 35px;
+    }
+
+    .rank-name {
+        font-size: 14px;
+    }
 }
 </style>

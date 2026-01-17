@@ -19,7 +19,7 @@ async function fetchUserInfo() {
   }
   
   try {
-    const response = await fetch('/api/userinfo', {
+    const response = await fetch(`/api/userinfo?t=${Date.now()}`, {
       headers: { 'Authorization': token }
     });
     if (response.ok) {

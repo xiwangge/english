@@ -1,6 +1,6 @@
 <template>
   <div class="main-layout" :class="userStore.theme">
-    <div class="sidebar">
+    <div class="sidebar desktop-only">
       <div class="user-info" 
         :class="{ 'is-loading': isUserLoading }"
         @click="handleUserClick">
@@ -16,8 +16,18 @@
         </div>
 
         <div class="hover-hint">
-          <span class="icon">⚙️</span>
-          <span class="text">设置</span>
+          <div class="hover-actions">
+            <div class="hover-action-item" @click.stop="handleUserClick">
+              <span class="icon">⚙️</span>
+              <span class="text">设置</span>
+            </div>
+            <!--
+            <div v-if="isLoggedIn" class="hover-action-item logout" @click.stop="handleLogout">
+              <span class="icon">🚪</span>
+              <span class="text">退出</span>
+            </div>
+            -->
+          </div>
         </div>
 
         <div class="loading-mask" v-if="isUserLoading">
@@ -42,9 +52,11 @@
         <a href="#" @click.prevent="navigateTo('typing')" :class="{ active: activeMenu === 'typing' }">
           <span class="icon">⌨️</span> 键盘练习
         </a>
-        <a href="#" @click.prevent="navigateTo('BubbleGame')" :class="{ active: activeMenu === 'BubbleGame' }">
-         <span class="icon">🎮</span> 气泡作战
-       </a>
+        
+        <a href="#" @click.prevent="navigateTo('GameCenter')" :class="{ active: activeMenu === 'GameCenter' }">
+          <span class="icon">🎮</span> 游戏中心
+        </a>
+        
         <a href="#" @click.prevent="goToInternationalSite">
           <span class="icon">🌍</span> 国际站
         </a>
@@ -60,7 +72,16 @@
 
     <div class="content-area" id="content-area">
       <div class="content-header" :style="{ background: headerBgColor }">
-        <div class="header-actions">
+        <!-- 📱 Hamburger Menu Button for Mobile -->
+        <button class="hamburger-menu mobile-only" @click="toggleDrawer">
+          <div class="hamburger-icon" :class="{ 'is-open': isDrawerOpen }">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </button>
+
+        <div class="header-actions desktop-only">
           <div class="customer-service-container" @mouseover="showQRCode = true" @mouseout="showQRCode = false">
             <button class="theme-toggle-btn">
               <img src="/images/wechat.png" class="wechat-icon" alt="微信">
@@ -76,6 +97,48 @@
           </button>
         </div>
       </div>
+
+      <!-- 📱 Mobile Drawer Overlay -->
+      <div class="drawer-overlay" v-if="isDrawerOpen" @click="closeDrawer"></div>
+
+      <!-- 📱 Mobile Drawer -->
+      <div class="mobile-drawer" :class="{ 'is-open': isDrawerOpen }">
+        <div class="drawer-user-info" @click="handleUserClick(); closeDrawer();">
+          <img :src="avatarUrl" alt="头像" class="drawer-avatar">
+          <div class="drawer-user-text">
+            <span class="drawer-nickname">{{ userStore.user.nickname || '游客' }}</span>
+            <span class="drawer-subtext">{{ formattedExpiryDate || 'Welcome' }}</span>
+          </div>
+        </div>
+
+        <nav class="drawer-nav">
+          <a href="#" @click.prevent="navigateTo('home'); closeDrawer();" :class="{ active: activeMenu === 'home' }">
+            <span class="icon">🏠</span> 首页
+          </a>
+          <a v-if="isLoggedIn" href="#" @click.prevent="navigateTo('my'); closeDrawer();" :class="{ active: activeMenu === 'my' }">
+            <span class="icon">👤</span> 我的课程
+          </a>
+          <a href="#" @click.prevent="navigateTo('book'); closeDrawer();" :class="{ active: activeMenu === 'book' }">
+            <span class="icon">📚</span> 英语课程
+          </a>
+          <!--
+          <a href="#" @click.prevent="navigateTo('CarrotGame'); closeDrawer();" :class="{ active: activeMenu === 'CarrotGame' }">
+            <span class="icon">🥕</span> 萝卜纸巾
+          </a>
+          -->
+          <a href="#" @click.prevent="goToInternationalSite(); closeDrawer();">
+            <span class="icon">🌍</span> 国际站
+          </a>
+        </nav>
+
+        <div class="drawer-footer">
+          <button @click="userStore.toggleTheme" class="drawer-btn">
+            <span v-if="userStore.theme === 'light'">🌙 深色模式</span>
+            <span v-else>☀️ 浅色模式</span>
+          </button>
+        </div>
+      </div>
+
       <div class="router-view-wrapper">
         <router-view></router-view>
       </div>
@@ -108,6 +171,15 @@ const bookButton = ref(null);
 
 const activeMenu = ref('home');
 const showRedirectLoginModal = ref(false);
+const isDrawerOpen = ref(false); // 📱 移动端抽屉状态
+
+function toggleDrawer() {
+  isDrawerOpen.value = !isDrawerOpen.value;
+}
+
+function closeDrawer() {
+  isDrawerOpen.value = false;
+}
 
 watch(() => userStore.showLoginModal, (newValue) => {
   if (newValue) {
@@ -152,9 +224,31 @@ const isSubscribed = computed(() => {
   return new Date(expiry) > new Date();
 });
 
-function navigateTo(page) {
+async function navigateTo(page) {
+  // 国内站特定逻辑：部分按钮需要登录后点击才会有反应（弹出登录提示）
+  // 'BubbleGame', 'CarrotGame', 'typing' ,
+  const protectedPages = ['my', 'setting',  'typing', 'GameCenter'];
+  if (protectedPages.includes(page) && !isLoggedIn.value) {
+    showRedirectLoginModal.value = true;
+    return;
+  }
+
   activeMenu.value = page;
-  router.push({ name: page });
+  try {
+    await router.push({ name: page });
+  } catch (error) {
+    console.error('路由跳转失败:', error);
+    // 如果是由于新版本导致的文件缺失，跳转会触发 router.onError 里的刷新逻辑
+  }
+}
+
+function handleLogout() {
+  if (confirm('确定要退出登录吗？')) {
+    localStorage.removeItem('token');
+    userStore.clearUser();
+    toast.success('已退出登录');
+    router.push({ name: 'home' });
+  }
 }
 
 function handleProgrammingClick() {
@@ -546,6 +640,13 @@ async function goToInternationalSite() {
   flex-shrink: 0;
   z-index: 10;
   transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+@media (max-width: 1100px) {
+  .content-header {
+    padding: 10px 15px;
+    justify-content: space-between;
+  }
 }
 
 .router-view-wrapper {

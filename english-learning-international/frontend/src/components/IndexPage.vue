@@ -54,8 +54,15 @@
 
     <div class="content-area" id="content-area">
       <div class="content-header" :style="{ background: headerBgColor }">
+        <!-- 📱 Mobile Hamburger Icon -->
+        <button class="hamburger-btn" @click="isDrawerOpen = true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round"/>
+          </svg>
+        </button>
+
         <div class="header-actions">
-          <div class="customer-service-container" @mouseover="showQRCode = true" @mouseout="showQRCode = false">
+          <div class="customer-service-container desktop-only" @mouseover="showQRCode = true" @mouseout="showQRCode = false">
             <button class="theme-toggle-btn">
               <img src="/images/wechat.png" class="wechat-icon" alt="微信">
             </button>
@@ -64,20 +71,68 @@
               <p>微信扫码联系客服</p>
             </div>
           </div>
-          <button @click="userStore.toggleTheme" class="theme-toggle-btn">
+          <button @click="userStore.toggleTheme" class="theme-toggle-btn desktop-only">
             <span v-if="userStore.theme === 'light'">🌙</span>
             <span v-else>☀️</span>
           </button>
 
-          <button v-if="!userStore.user.nickname" @click="redirectToLogin" class="auth-button">
+          <button v-if="!userStore.user.nickname" @click="redirectToLogin" class="auth-button desktop-only">
             登录
           </button>
-          <button v-else @click="handleLogout" class="auth-button">
+          <button v-else @click="handleLogout" class="auth-button desktop-only">
             退出
           </button>
 
         </div>
       </div>
+
+      <!-- 📱 Mobile Drawer Overlay -->
+      <div class="drawer-overlay" :class="{ active: isDrawerOpen }" @click="isDrawerOpen = false"></div>
+      
+      <!-- 📱 Mobile Drawer -->
+      <div class="mobile-drawer" :class="{ active: isDrawerOpen }">
+         <div class="drawer-header">
+           <div class="drawer-user" @click="handleUserClick(); isDrawerOpen = false">
+             <img :src="avatarUrl" alt="头像" class="drawer-avatar">
+             <span class="drawer-nickname">{{ userStore.user.nickname || '游客' }}</span>
+           </div>
+           <button class="close-drawer" @click="isDrawerOpen = false">×</button>
+         </div>
+
+         <nav class="drawer-nav">
+            <a href="#" @click.prevent="navigateTo('home'); isDrawerOpen = false" :class="{ active: activeMenu === 'home' }">
+              <span class="icon">🏠</span> 首页
+            </a>
+            <a href="#" @click.prevent="navigateTo('messages'); isDrawerOpen = false" :class="{ active: activeMenu === 'messages' }">
+              <span class="icon">📥</span> 留言建议
+            </a>
+            <a href="#" @click.prevent="navigateTo('reward'); isDrawerOpen = false" :class="{ active: activeMenu === 'reward' }">
+              <span class="icon">💰</span> 邀请奖励
+            </a>
+            <a href="#" @click.prevent="navigateTo('about'); isDrawerOpen = false" :class="{ active: activeMenu === 'about' }">
+              <span class="icon">ℹ️</span> 关于我们
+            </a>
+            <a href="#" @click.prevent="goToChinaSite" class="china-site-link">
+              <span class="icon">🇨🇳</span> 中国站
+            </a>
+         </nav>
+
+         <div class="drawer-footer">
+            <div class="drawer-actions">
+               <button @click="userStore.toggleTheme" class="drawer-action-btn">
+                 <span v-if="userStore.theme === 'light'">🌙 深色模式</span>
+                 <span v-else>☀️ 浅色模式</span>
+               </button>
+               <button v-if="!userStore.user.nickname" @click="redirectToLogin(); isDrawerOpen = false" class="drawer-action-btn primary">
+                 登录
+               </button>
+               <button v-else @click="handleLogout(); isDrawerOpen = false" class="drawer-action-btn">
+                 退出登录
+               </button>
+            </div>
+         </div>
+      </div>
+
       <div class="router-view-wrapper">
         <router-view></router-view>
       </div>
@@ -98,6 +153,7 @@ const toast = useToast();
 const bookButton = ref(null);
 
 const activeMenu = ref('home');
+const isDrawerOpen = ref(false);
 const showRedirectLoginModal = ref(false);
 
 // 监听路由变化，同步 activeMenu
@@ -164,7 +220,7 @@ function redirectToLogin() {
 
 function handleLogout() {
   localStorage.removeItem('token');
-  userStore.setUser({}); // 清空用户信息
+  userStore.clearUser(); // 彻底清除用户信息
   router.push({ name: 'login' });
 }
 
@@ -637,5 +693,156 @@ const goToChinaSite = async () => {
   margin-top: 0.5rem;
   font-size: 0.8rem;
   color: var(--text-subtle);
+}
+
+/* 🍔 Hamburger Button */
+.hamburger-btn {
+  display: none;
+  background: none;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  color: var(--text-main);
+}
+.hamburger-btn svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* 抽屉遮罩层 */
+.drawer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+.drawer-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* 抽屉主体 */
+.mobile-drawer {
+  position: fixed;
+  top: 0;
+  right: -280px;
+  width: 280px;
+  height: 100%;
+  background: var(--card-bg, #fff);
+  z-index: 1001;
+  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+}
+.mobile-drawer.active {
+  right: 0;
+}
+
+.drawer-header {
+  padding: 20px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.drawer-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.drawer-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+.drawer-nickname {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.close-drawer {
+  background: none;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.drawer-nav {
+  flex: 1;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.drawer-nav a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  text-decoration: none;
+  color: var(--text-main);
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.drawer-nav a.active {
+  background-color: var(--primary-light, #fcf0e2);
+  color: var(--primary-color, #e59f42);
+}
+
+.drawer-footer {
+  padding: 20px;
+  border-top: 1px solid var(--border-color);
+}
+
+.drawer-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.drawer-action-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: none;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.drawer-action-btn.primary {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+}
+
+/* 📱 Mobile Fine-tuning */
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none !important;
+  }
+  
+  .hamburger-btn {
+    display: block;
+  }
+
+  .content-header {
+    justify-content: space-between;
+    padding: 10px 15px;
+  }
 }
 </style>

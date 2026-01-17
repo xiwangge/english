@@ -133,4 +133,16 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
 }
+
+/* 📱 移动端适应 (Mobile Adaptation) */
+@media (max-width: 1100px) {
+    #all-books {
+        padding: 20px 15px;
+    }
+
+    #all-books h2 {
+        font-size: 1.5rem;
+        margin-bottom: 15px;
+    }
+}
 </style>

@@ -10,7 +10,6 @@ import jwt from 'jsonwebtoken';
 import config from './config.js';
 import crypto from 'crypto';
 import fetch from 'node-fetch'; // 引入 node-fetch
-import { createClient } from 'redis';
 import uuid from 'uuid';
 const { v4: uuidv4 } = uuid;
 
@@ -27,6 +26,7 @@ import Group from '@english-learning/common/models/Group.js'; // 引入 Group �
 import Product from '@english-learning/common/models/Product.js';
 import Order from '@english-learning/common/models/Order.js';
 import SystemConfig from '@english-learning/common/models/SystemConfig.js';
+import VoiceTeacher from '@english-learning/common/models/VoiceTeacher.js';
 import solarlunar from 'solarlunar';
 
 const verificationCodeLength = 6; // 验证码长度
@@ -39,16 +39,6 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS // 你的邮箱授权码
   }
 });
-
-// --- Redis 连接 ---
-// const redisClient = createClient({
-//   // 默认连接 localhost:6379，如有需要请在此配置 url StrongPassWord123...
-//   // redis://:你的密码@localhost:6379 'redis://user:password@host:port'
-//   url: 'redis://:StrongPassWord123...@localhost:6379'
-// });
-// redisClient.on('error', (err) => console.log('Redis Client Error', err));
-// await redisClient.connect();
-// console.log('Redis connected');
 
 
 // --- ES Modules 路径处理 ---
@@ -69,6 +59,11 @@ app.use(express.json());
 // JWT 认证中间件
 // JWT 认证中间件 (增强版，带会话验证)
 const auth = async (req, res, next) => {
+  // 核心：强制不缓存任何带 Auth 的接口
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+
   const token = req.headers.authorization;
   if (!token) {
     return res.status(401).json({ message: '未授权' });
@@ -231,188 +226,6 @@ async function generateInvitationCode(userCount) {
   return code;
 }
 
-// --- 微信扫码登录 (使用 Redis) ---
-
-const WECHAT_SESSION_EXPIRY = 5 * 60; // 5 分钟过期 (单位：秒)
-
-// 1. 获取登录二维码
-// 1. 获取登录参数 (修改为返回配置而非图片)
-// app.get('/api/wechat/qrcode', async (req, res) => {
-//   const { invitationCode } = req.query;
-//   const sceneId = uuidv4(); // 生成唯一场景 ID
-//   const appid = process.env.APPID;
-//   const redirect_uri = 'https://xuebubu.com/api/auth/callback'; // 注意：这里传原始地址，让前端传给 WxLogin，或者这里 encode 也可以
-//   // 建议返回原始地址，WxLogin 内部或前端处理 encode，或者保持一致使用 encodeURIComponent 后的
-//   const redirect_uri_encoded = encodeURIComponent(redirect_uri);
-
-//   try {
-//     // 在 Redis 中创建登录会话 (保持不变)
-//     const redisKey = `wechat:login:${sceneId}`;
-//     await redisClient.set(redisKey, JSON.stringify({ 
-//       status: 'pending',
-//       invitationCode: invitationCode || null // 存进去
-//     }), {
-//       EX: 5 * 60 // 5分钟过期
-//     });
-
-//     // 移除 QRCode.toDataURL 相关代码
-//     // 直接返回参数给前端
-//     res.json({
-//       appid: appid,
-//       redirect_uri: redirect_uri_encoded,
-//       scope: 'snsapi_login',
-//       state: sceneId, // 这里的 sceneId 就是前端的 wechatId
-//       wechatId: sceneId 
-//     });
-//   } catch (error) {
-//     console.error('写入 Redis 失败:', error);
-//     res.status(500).json({ message: '获取登录参数失败' });
-//   }
-// });
-
-// 2. 微信授权回调
-// app.get('/api/auth/callback', async (req, res) => {
-//   const { code, state: sceneId } = req.query;
-
-//   if (!code || !sceneId) {
-//     return res.status(400).send('缺少 code 或 state 参数');
-//   }
-//   const redisKey = `wechat:login:${sceneId}`;
-
-//   try {
-//     // 验证 state (sceneId) 的有效性
-//     const sessionStr = await redisClient.get(redisKey);
-
-//     if (!sessionStr) {
-//       return res.status(404).send('二维码已过期或无效，请刷新页面后重试。');
-//     }
-
-//     // === 关键点：解析出之前存的邀请码 ===
-//     const sessionData = JSON.parse(sessionStr);
-//     const receivedInvitationCode = sessionData.invitationCode;
-
-//     // 1. 用 code 换取 access_token
-//     const tokenUrl = 'https://api.weixin.qq.com/sns/oauth2/access_token';
-//     const tokenParams = new URLSearchParams({
-//       appid: process.env.APPID,
-//       secret: process.env.APPSECRET,
-//       code,
-//       grant_type: 'authorization_code',
-//     });
-
-//     // fetch 请求
-//     const tokenRes = await fetch(`${tokenUrl}?${tokenParams}`);
-//     const tokenData = await tokenRes.json();
-//     const { access_token, openid } = tokenData;
-
-//     if (!openid) {
-//       // throw new Error('微信返回的数据中缺少 openid');
-//       // 将具体的错误信息抛出，方便调试
-//         throw new Error(`❌ 微信接口错误: ${tokenData.errmsg || '未知错误'} (错误码: ${tokenData.errcode})`);
-//     }
-
-//     // 2. 获取用户信息
-//     const userInfoUrl = 'https://api.weixin.qq.com/sns/userinfo';
-//     const userInfoParams = new URLSearchParams({
-//       access_token,
-//       openid,
-//       lang: 'zh_CN'
-//     });
-
-//     // fetch 请求
-//     const userInfoRes = await fetch(`${userInfoUrl}?${userInfoParams}`);
-//     const userInfoData = await userInfoRes.json();
-//     const { nickname, headimgurl, sex, city } = userInfoData;
-
-//     // 1. 查找或创建用户 (数据库操作)
-//     let user = await User.findOne({ wechatId: openid });
-//     if (!user) {
-//         const userCount = await User.countDocuments();
-//         const invitationCode = await generateInvitationCode(userCount);
-//         user = new User({
-//           username: `wx_${openid.slice(-8)}`,
-//           nickname: nickname,
-//           avatar: headimgurl,
-//           loginType: 'wechat',
-//           wechatId: openid,
-//           invitationCode: invitationCode,
-//           sex: sex,
-//           city: city,
-//         });
-//         await user.save();
-
-//         if (receivedInvitationCode) {
-//           const inviter = await User.findOne({ invitationCode: receivedInvitationCode });
-//           if (inviter) {
-//             user.invitedBy = inviter._id;
-//             await user.save();
-//             inviter.invitedCount = (inviter.invitedCount || 0) + 1;
-//             await inviter.save();
-//           }
-//         }
-//       } 
-
-//     // 2. === 关键修改：直接在这里生成 JWT Token ===
-//     const token = jwt.sign(
-//       { userId: user._id }, process.env.token_secretKey, { expiresIn: config.expiresIn }
-//     );
-
-//     // 3. 返回 HTML，将 Token 直接传回给父窗口
-//     // 注意：我们将 targetOrigin 设为 '*' 以允许本地调试，生产环境建议设为您的域名
-//     const html = `
-//       <!DOCTYPE html>
-//       <html>
-//       <head>
-//         <title>登录成功</title>
-//         <meta charset="utf-8">
-//       </head>
-//       <body>
-//         <h3>登录成功，正在跳转...</h3>
-//         <script>
-//           try {
-//             // 1. 直接将 Token 写入父窗口的 LocalStorage
-//             // 注意：因为是同源，我们可以直接操作 window.top.localStorage
-//             window.top.localStorage.setItem('token', '${token}');
-
-//             // 2. 同时也存入用户信息
-//             const userInfo = {
-//               username: '${user.username}',
-//               avatar: '${user.avatar}',
-//               id: '${user._id}'
-//             };
-//             window.top.localStorage.setItem('userInfo', JSON.stringify(userInfo));
-
-//             // 3. 强制父窗口跳转到主页
-//             console.log('Backend: 登录成功，执行同源跳转');
-//             window.top.location.href = '/';
-
-//           } catch (e) {
-//             console.error('自动跳转失败，尝试 PostMessage 备用方案', e);
-//             // 备用方案：如果同源策略因某种原因失效，回退到 postMessage
-//             window.top.postMessage({ 
-//               type: 'WECHAT_LOGIN_SUCCESS', 
-//               token: '${token}',
-//               userInfo: {
-//                  username: '${user.username}',
-//                  avatar: '${user.avatar}',
-//                  id: '${user._id}'
-//               }
-//             }, '*');
-//           }
-//         </script>
-//       </body>
-//       </html>
-//     `;
-
-//     res.send(html);
-
-//   } catch (error) {
-//     console.error('微信回调处理失败:', error.response ? error.response.data : error.message);
-//     // 可以在 Redis 中记录失败状态
-//     await redisClient.set(redisKey, JSON.stringify({ status: 'failed', error: '回调处理失败' }), { EX: 60 });
-//     res.status(500).send('微信授权失败，请重试。');
-//   }
-// });
 
 // --- SSO 单点登录验证接口 (JWT方案 + 会话绑定) ---
 app.post('/api/verify-sso-code', async (req, res) => {
@@ -655,13 +468,15 @@ app.post('/api/loginWithVerificationCode', async (req, res) => {
 // 获取用户信息接口
 app.get('/api/userinfo', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.userId).populate({
-      path: 'group',
-      populate: {
-        path: 'members',
-        select: 'credits' // 只需要成员的学分信息即可
-      }
-    });
+    const user = await User.findById(req.userId)
+      .populate('preferredTeacher')
+      .populate({
+        path: 'group',
+        populate: {
+          path: 'members',
+          select: 'credits' // 只需要成员的学分信息即可
+        }
+      });
     if (!user) {
       return res.status(404).json({ message: '用户不存在' });
     }
@@ -675,6 +490,7 @@ app.get('/api/userinfo', auth, async (req, res) => {
       golds: user.golds,
       email: user.email,
       group: user.group, // 返回群组信息
+      preferredTeacher: user.preferredTeacher, // 返回偏好的发音老师信息
     });
   } catch (error) {
     console.error('获取用户信息失败:', error);
@@ -749,6 +565,30 @@ app.post('/api/user/bind-email', auth, async (req, res) => {
   } catch (error) {
     console.error('绑定邮箱失败:', error);
     res.status(500).json({ message: '服务器绑定邮箱失败' });
+  }
+});
+
+// --- 发音老师相关 API ---
+
+// 获取所有可用的老师
+app.get('/api/teachers', auth, async (req, res) => {
+  try {
+    const teachers = await VoiceTeacher.find({ isActive: true });
+    res.status(200).json(teachers);
+  } catch (error) {
+    res.status(500).json({ message: '获取老师列表失败' });
+  }
+});
+
+// 设置偏好的老师
+app.post('/api/user/preferred-teacher', auth, async (req, res) => {
+  try {
+    const { teacherId } = req.body;
+    // teacherId 可以为 null (恢复默认)
+    await User.findByIdAndUpdate(req.userId, { preferredTeacher: teacherId || null });
+    res.status(200).json({ message: '老师设置成功' });
+  } catch (error) {
+    res.status(500).json({ message: '设置老师失败' });
   }
 });
 
@@ -971,7 +811,7 @@ app.post('/api/userBook/create', auth, async (req, res) => {
       return res.status(404).json({ message: '用户不存在' });
     }
 
-    const book = await Book.findById(bookId);
+    const book = await Book.findById(bookId).select('units._id');
     if (!book) {
       return res.status(404).json({ message: '书籍不存在' });
     }
@@ -1030,7 +870,7 @@ app.get('/api/learning-books', auth, async (req, res) => {
     const userId = req.userId;
     // 从数据库中获取用户学习的课程
     const userBooks = await UserBook.find({ userId })
-      .populate('bookId');
+      .populate({ path: 'bookId', select: '-units' });
 
     const books = userBooks.map(userBook => {
       const progress = userBook.units.length > 0 ? (userBook.units.filter(unit => unit.completed).length / userBook.units.length) * 100 : 0;
@@ -1060,7 +900,7 @@ app.get('/api/learning-books', auth, async (req, res) => {
 // 获取所有书籍只包含上架的
 app.get('/api/allBooks', async (req, res) => {
   try {
-    const books = await Book.find({ isOnShelf: true }).lean();
+    const books = await Book.find({ isOnShelf: true }).select('-units').lean();
 
     // 并行统计每本书的添加人数和完成人数
     const booksWithStats = await Promise.all(books.map(async (book) => {
@@ -1088,7 +928,7 @@ app.get('/api/book/getBook', async (req, res) => {
       return res.status(400).json({ message: '必须提供 bookId' });
     }
 
-    const book = await Book.findById(bookId);
+    const book = await Book.findById(bookId).select('-units.words -units.sentences');
     if (!book) {
       return res.status(404).json({ message: '未找到该教材' });
     }
@@ -1180,7 +1020,10 @@ app.get('/api/userBook/getUserBook', auth, async (req, res) => {
       return res.status(400).json({ message: '必须提供 bookId' });
     }
 
-    const userBook = await UserBook.findOne({ userId: userId, bookId: bookId }).populate('bookId');
+    const userBook = await UserBook.findOne({ userId: userId, bookId: bookId }).populate({
+      path: 'bookId',
+      select: '-units.words -units.sentences'
+    });
 
     if (!userBook) {
       return res.status(404).json({ message: '未找到该用户课程' });
@@ -1378,132 +1221,6 @@ app.post('/api/userBook/completeUnit', auth, async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server listening on port ${port}`);
-});
-
-// --- 留言系统 API ---
-
-// 创建留言或提案
-app.post('/api/message/create', auth, async (req, res) => {
-  try {
-    const { content, messageType } = req.body;
-    const userId = req.userId;
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: '用户不存在' });
-    }
-
-    if (messageType === 'proposal') {
-      // 检查用户订阅状态
-      if (!user.subscriptionExpiry || user.subscriptionExpiry < new Date()) {
-        return res.status(403).json({ message: '只有订阅用户才能发起提案。' });
-      }
-    } else {
-      // 检查用户是否已创建超过5条留言
-      const userMessageCount = await Message.countDocuments({ author: userId, messageType: 'message' });
-      if (userMessageCount >= 5) {
-        return res.status(403).json({ message: '您最多只能创建5条留言。' });
-      }
-    }
-
-    const messageData = {
-      author: userId,
-      content: content,
-      messageType: messageType || 'message'
-    };
-
-    const message = new Message(messageData);
-    await message.save();
-    res.status(201).json(message);
-  } catch (error) {
-    res.status(500).json({ message: '创建失败' });
-  }
-});
-
-// 获取已批准的提案
-app.get('/api/proposalsByStatus', async (req, res) => {
-  try {
-    const proposals = await Message.find({ messageType: 'proposal', status: { $in: ['approved', 'closed'] } })
-      .populate('author', 'nickname avatar')
-      .populate('replies.author', 'nickname avatar')
-      .populate('votes.user', 'nickname avatar')
-      .sort({ createdAt: -1 });
-    res.status(200).json(proposals);
-  } catch (error) {
-    res.status(500).json({ message: '获取提案失败' });
-  }
-});
-
-// 获取当前用户的普通留言
-app.get('/api/messagesByUser', auth, async (req, res) => {
-  try {
-    const userId = req.userId;
-
-    const messages = await Message.find({ messageType: 'message', author: userId })
-      .populate('author', 'nickname avatar')
-      .populate('replies.author', 'nickname avatar')
-      .sort({ createdAt: -1 });
-    res.status(200).json(messages);
-  } catch (error) {
-    res.status(500).json({ message: '获取留言失败' });
-  }
-});
-
-// 投票
-app.post('/api/messages/:id/vote', auth, async (req, res) => {
-  try {
-    const { voteType } = req.body; // 'up' or 'down'
-    const userId = req.userId;
-
-    const message = await Message.findById(req.params.id);
-    if (!message || message.messageType !== 'proposal') {
-      return res.status(404).json({ message: '提案不存在' });
-    }
-
-    if (new Date() > new Date(message.voteDeadline)) {
-      return res.status(400).json({ message: '投票已截止' });
-    }
-
-    const existingVote = message.votes.find(vote => vote.user.equals(userId));
-
-    if (existingVote) {
-      // 如果用户已投票，则更新投票
-      existingVote.voteType = voteType;
-    } else {
-      // 否则，添加新投票
-      message.votes.push({ user: userId, voteType });
-    }
-
-    await message.save();
-    res.status(200).json(message);
-  } catch (error) {
-    res.status(500).json({ message: '投票失败' });
-  }
-});
-
-// 回复留言或提案
-app.post('/api/messages/:id/replies', auth, async (req, res) => {
-  try {
-    const { content } = req.body;
-    const userId = req.userId;
-
-    const message = await Message.findById(req.params.id);
-    if (!message) {
-      return res.status(404).json({ message: '留言或提案不存在' });
-    }
-
-    message.replies.push({
-      author: userId,
-      content: content
-    });
-    await message.save();
-    res.status(201).json(message);
-  } catch (error) {
-    res.status(500).json({ message: '回复失败' });
-  }
-});
 
 // --- 排行榜 API ---
 // 1. 群排行榜
@@ -1791,4 +1508,9 @@ app.get('/api/almanac', (req, res) => {
     console.error('生成农历数据失败:', error);
     res.status(500).json({ message: '服务器生成农历数据失败' });
   }
+});
+
+
+app.listen(port, () => {
+  console.log(`Server listening on port ${port}`);
 });

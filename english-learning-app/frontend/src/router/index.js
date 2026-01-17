@@ -2,11 +2,6 @@ import { createRouter, createWebHistory } from 'vue-router'
 import IndexPage from '../components/IndexPage.vue' // 这个现在是新的首页（原 WelcomePage）
 const routes = [
   {
-    path: '/login',
-    name: 'login',
-    component: () => import('../components/LoginPage.vue')
-  },
-  {
     path: '/',
     name: 'index',
     component: IndexPage,
@@ -53,20 +48,24 @@ const routes = [
         meta: { requiresAuth: true }
       },
       {
-        path: 'messages',
-        name: 'messages',
-        component: () => import('../components/MessageBoard.vue'),
-        meta: { requiresAuth: true }
-      },
-      {
         path: 'games',
-        name: 'games',
-        component: () => import('../components/GamesPage.vue')
+        name: 'GameCenter',
+        component: () => import('../components/GameCenter.vue')
       },
       {
         path: 'bubble-game',
         name: 'BubbleGame',
         component: () => import('../components/BubbleGame.vue')
+      },
+      {
+        path: 'sword-game',
+        name: 'SwordGame',
+        component: () => import('../components/SwordGame.vue')
+      },
+      {
+        path: 'carrot-game',
+        name: 'CarrotGame',
+        component: () => import('../components/CarrotGame.vue')
       }
     ]
   },
@@ -77,17 +76,18 @@ const router = createRouter({
   routes
 })
 
-// router.beforeEach((to, from, next) => {
-//   const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
-//   const isAuthenticated = localStorage.getItem('token'); // 假设登录状态存储在 localStorage 中
+router.onError((error) => {
+  const errorMsg = error?.message || error?.toString() || '';
+  const isChunkError = /Failed to fetch dynamically imported module|Loading chunk|error loading dynamically imported module|Importing a module script failed/i.test(errorMsg);
 
-//   if (requiresAuth && !isAuthenticated) {
-//     // 如果路由需要认证但用户未登录，则重定向到登录页
-//     next('/login');
-//   } else {
-//     // 否则，正常放行
-//     next();
-//   }
-// });
+  if (isChunkError) {
+    console.warn('Router error: Chunk load failed, reloading...', errorMsg);
+    // Add a small delay for better user experience
+    setTimeout(() => {
+      window.location.reload();
+    }, 500);
+  }
+})
+
 
 export default router

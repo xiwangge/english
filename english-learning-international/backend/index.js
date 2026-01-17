@@ -13,6 +13,8 @@ import { v4 as uuidv4 } from 'uuid';
 import solarlunar from 'solarlunar';
 import ip2region from 'ip2region';
 import Stripe from 'stripe';
+import { createClient } from 'redis';
+
 const Searcher = ip2region.default || ip2region;
 
 // Import common models
@@ -40,7 +42,8 @@ const clientConfig = new $OpenApi.Config({
 });
 // ESM 下通常直接使用 DM20151123 或 DM20151123.default
 const dmClient = new (DM20151123.default || DM20151123)(clientConfig);
-
+// --- Constants ---
+const verificationCodeLength = 6;
 
 const searcher = new Searcher({ dbPath: path.join(path.dirname(fileURLToPath(import.meta.url)), 'ip2region_v4.xdb') });
 
@@ -52,85 +55,21 @@ const port = 5001;
 
 app.use(cors());
 
-// Stripe webhook must be before express.json() for raw body access
-app.post('/api/payment/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-    const sig = req.headers['stripe-signature'];
-    let event;
-
-    try {
-        event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-    } catch (err) {
-        console.error('Stripe Webhook Signature Verification Failed:', err.message);
-        return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
-
-    if (event.type === 'checkout.session.completed') {
-        const session = event.data.object;
-        const userId = session.client_reference_id;
-        const productType = session.metadata.productType;
-
-        try {
-            const [user, product] = await Promise.all([
-                User.findById(userId),
-                Product.findOne({ type: productType })
-            ]);
-
-            if (user && product) {
-                let days = 0;
-                if (productType === 'monthly') days = 31;
-                else if (productType === 'quarterly') days = 93;
-                else if (productType === 'yearly') days = 366;
-                else if (productType === 'lifetime') days = 36500;
-
-                const current = (user.subscriptionExpiry && user.subscriptionExpiry > new Date())
-                    ? user.subscriptionExpiry
-                    : new Date();
-                user.subscriptionExpiry = new Date(current.getTime() + days * 24 * 60 * 60 * 1000);
-
-                const order = new Order({
-                    orderNo: session.id,
-                    userId: userId,
-                    productId: product._id, // 修复：添加必须的产品 ID
-                    amount: session.amount_total / 100,
-                    status: 'paid',
-                    transactionId: session.payment_intent,
-                });
-                await order.save();
-                await user.save();
-
-                // --- 推广佣金计算 ---
-                if (user.invitedBy) {
-                    try {
-                        const referrer = await User.findById(user.invitedBy);
-                        if (referrer) {
-                            // 判断是否为终身会员 (10% 奖励)，否则 6%
-                            const isLifetime = referrer.subscriptionExpiry &&
-                                (referrer.subscriptionExpiry.getTime() - new Date().getTime() > 10 * 365 * 24 * 60 * 60 * 1000);
-
-                            const commissionRate = isLifetime ? 0.10 : 0.06;
-                            const rewardAmount = (session.amount_total / 100) * commissionRate;
-
-                            referrer.balance = (referrer.balance || 0) + rewardAmount;
-                            await referrer.save();
-                            console.log(`Referral reward: ${rewardAmount} GBP added to user ${referrer._id} (Rate: ${commissionRate * 100}%)`);
-                        }
-                    } catch (refError) {
-                        console.error('Failed to process referral reward:', refError);
-                    }
-                }
-
-                console.log(`User ${userId} subscription updated via Stripe for product ${productType}.`);
-            } else {
-                console.warn(`Webhook ignored: User (${!!user}) or Product (${!!product}) not found.`);
-            }
-        } catch (dbError) {
-            console.error('Error updating user subscription from Stripe webhook:', dbError);
-            return res.status(500).send('Database Error');
-        }
-    }
-
-    res.json({ received: true });
+// --- Redis 连接 ---
+const redisClient = createClient({
+    // 默认连接 localhost:6379，如有需要请在此配置 url StrongPassWord123...
+    // redis://:你的密码@localhost:6379 'redis://user:password@host:port'
+    url: 'redis://:StrongPassWord123...@localhost:6379'
 });
+redisClient.on('error', (err) => console.log('Redis Client Error', err));
+try {
+    await redisClient.connect();
+    console.log('Redis connected');
+} catch (err) {
+    console.error('Redis connection failed:', err);
+    // Depending on your requirements, you might want to exit or continue
+    // process.exit(1); 
+}
 
 app.use(express.json());
 
@@ -188,8 +127,6 @@ mongoose.connect(process.env.mongoURI, {
     })
     .catch(err => console.error('MongoDB connection error:', err));
 
-// --- Constants ---
-const verificationCodeLength = 6;
 
 // --- Helper Functions ---
 function generateVerificationCode() {
@@ -215,6 +152,11 @@ async function generateInvitationCode(userCount) {
 
 // --- Auth Middleware ---
 const auth = async (req, res, next) => {
+    // 强制不缓存任何授权接口成果，防止 CDN/浏览器 灰度缓存
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
     const token = req.headers.authorization;
     if (!token) {
         return res.status(401).json({ message: '未授权' });
@@ -325,7 +267,7 @@ app.post('/api/sendVerificationCode', async (req, res) => {
 
         } else {
             await resend.emails.send({
-                from: 'no-replay@xuebubu.org',
+                from: 'no-reply@mail.xuebubu.org',
                 to: email,
                 subject: 'Your Verification Code for Xuebubu',
                 html: `
@@ -687,19 +629,19 @@ app.get('/api/leaderboard/groups', auth, async (req, res) => {
         const limit = 20;
         const top20Groups = await Group.find({ '_id': { $in: groupIds.slice(0, limit) } }).lean();
         const top10 = top20Groups.map(g => {
-            const groupStat = stats.find(s => s._id.equals(g._id));
+            const groupStat = stats.find(s => String(s._id) === String(g._id));
             return {
                 ...g,
                 totalCredits: groupStat ? groupStat.totalCredits : 0,
                 memberCount: groupStat ? groupStat.memberCount : 0,
-                rank: groupIds.findIndex(id => id.equals(g._id)) + 1
+                rank: groupIds.findIndex(id => String(id) === String(g._id)) + 1
             };
         }).sort((a, b) => a.rank - b.rank);
 
         let myGroup = null;
         if (myGroupId && myRank > 20) {
             const g = await Group.findById(myGroupId).lean();
-            const myGroupStat = stats.find(s => s._id.equals(myGroupId));
+            const myGroupStat = stats.find(s => String(s._id) === String(myGroupId));
             myGroup = {
                 ...g,
                 totalCredits: myGroupStat ? myGroupStat.totalCredits : 0,
@@ -812,32 +754,111 @@ app.get('/api/products', async (req, res) => {
 //     privateKey: fs.readFileSync(path.resolve(__dirname, '../../cert/apiclient_key.pem')),
 // });
 
-app.post('/api/payment/create-native', auth, async (req, res) => {
-    try {
-        const { productType } = req.body;
-        const product = await Product.findOne({ type: productType });
-        if (!product) return res.status(404).json({ message: '未找到产品' });
+// app.post('/api/payment/create-native', auth, async (req, res) => {
+//     try {
+//         const { productType } = req.body;
+//         const product = await Product.findOne({ type: productType });
+//         if (!product) return res.status(404).json({ message: '未找到产品' });
 
-        const orderNo = `BUBU_INTL_${Date.now()}${Math.random().toString().slice(2, 8)}`;
-        const newOrder = new Order({ orderNo, userId: req.userId, productId: product._id, amount: product.price, status: 'pending' });
-        await newOrder.save();
+//         const orderNo = `BUBU_INTL_${Date.now()}${Math.random().toString().slice(2, 8)}`;
+//         const newOrder = new Order({ orderNo, userId: req.userId, productId: product._id, amount: product.price, status: 'pending' });
+//         await newOrder.save();
 
-        const params = {
-            description: `Bubu English - ${product.name}`,
-            out_trade_no: orderNo,
-            notify_url: 'https://international.xuebubu.com/api/payment/webhook',
-            amount: { total: Math.round(product.price * 100) },
-        };
+//         const params = {
+//             description: `Bubu English - ${product.name}`,
+//             out_trade_no: orderNo,
+//             notify_url: 'https://www.xuebubu.org/api/payment/webhook',
+//             amount: { total: Math.round(product.price * 100) },
+//         };
 
-        const result = await pay.transactions_native(params);
-        res.status(200).json({ codeUrl: result.data.code_url, orderNo });
-    } catch (error) {
-        console.error('WeChat Pay 订单创建失败:', error);
-        res.status(500).json({ message: '创建支付订单失败' });
-    }
-});
+//         const result = await pay.transactions_native(params);
+//         res.status(200).json({ codeUrl: result.data.code_url, orderNo });
+//     } catch (error) {
+//         console.error('WeChat Pay 订单创建失败:', error);
+//         res.status(500).json({ message: '创建支付订单失败' });
+//     }
+// });
 
 // --- Stripe Payment API ---
+// Stripe webhook must be before express.json() for raw body access
+app.post('/api/payment/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+    let event;
+
+    try {
+        event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    } catch (err) {
+        console.error('Stripe Webhook Signature Verification Failed:', err.message);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    if (event.type === 'checkout.session.completed') {
+        const session = event.data.object;
+        const userId = session.client_reference_id;
+        const productType = session.metadata.productType;
+
+        try {
+            const [user, product] = await Promise.all([
+                User.findById(userId),
+                Product.findOne({ type: productType })
+            ]);
+
+            if (user && product) {
+                let days = 0;
+                if (productType === 'monthly') days = 31;
+                else if (productType === 'quarterly') days = 93;
+                else if (productType === 'yearly') days = 366;
+                else if (productType === 'lifetime') days = 36500;
+
+                const current = (user.subscriptionExpiry && user.subscriptionExpiry > new Date())
+                    ? user.subscriptionExpiry
+                    : new Date();
+                user.subscriptionExpiry = new Date(current.getTime() + days * 24 * 60 * 60 * 1000);
+
+                const order = new Order({
+                    orderNo: session.id,
+                    userId: userId,
+                    productId: product._id, // 修复：添加必须的产品 ID
+                    amount: session.amount_total / 100,
+                    status: 'paid',
+                    transactionId: session.payment_intent,
+                });
+                await order.save();
+                await user.save();
+
+                // --- 推广佣金计算 ---
+                if (user.invitedBy) {
+                    try {
+                        const referrer = await User.findById(user.invitedBy);
+                        if (referrer) {
+                            // 判断是否为终身会员 (10% 奖励)，否则 6%
+                            const isLifetime = referrer.subscriptionExpiry &&
+                                (referrer.subscriptionExpiry.getTime() - new Date().getTime() > 10 * 365 * 24 * 60 * 60 * 1000);
+
+                            const commissionRate = isLifetime ? 0.10 : 0.06;
+                            const rewardAmount = (session.amount_total / 100) * commissionRate;
+
+                            referrer.balance = (referrer.balance || 0) + rewardAmount;
+                            await referrer.save();
+                            console.log(`Referral reward: ${rewardAmount} GBP added to user ${referrer._id} (Rate: ${commissionRate * 100}%)`);
+                        }
+                    } catch (refError) {
+                        console.error('Failed to process referral reward:', refError);
+                    }
+                }
+
+                console.log(`User ${userId} subscription updated via Stripe for product ${productType}.`);
+            } else {
+                console.warn(`Webhook ignored: User (${!!user}) or Product (${!!product}) not found.`);
+            }
+        } catch (dbError) {
+            console.error('Error updating user subscription from Stripe webhook:', dbError);
+            return res.status(500).send('Database Error');
+        }
+    }
+
+    res.json({ received: true });
+});
 
 app.post('/api/payment/create-stripe-session', auth, async (req, res) => {
     try {
@@ -965,7 +986,7 @@ app.post('/api/reward/send-payment-code', auth, async (req, res) => {
 // 2. 更新支付信息
 app.post('/api/reward/update-payment-info', auth, async (req, res) => {
     try {
-        const { method, accountName, bankName, cardNumber, wechatQRCode, code } = req.body;
+        const { method, accountName, bankName, cardNumber, alipayAccount, wechatQRCode, code } = req.body;
         const user = await User.findById(req.userId);
 
         // 校验验证码
@@ -1040,6 +1061,219 @@ app.get('/api/reward/withdrawals', auth, async (req, res) => {
         res.status(500).json({ message: '获取记录失败' });
     }
 });
+
+
+// --- 微信扫码登录 (使用 Redis) ---
+const WECHAT_SESSION_EXPIRY = 5 * 60; // 5 分钟过期 (单位：秒)
+
+// 1. 获取登录二维码
+// 1. 获取登录参数 (修改为返回配置而非图片)
+app.get('/api/wechat/qrcode', async (req, res) => {
+    const { invitationCode } = req.query;
+    const sceneId = uuidv4(); // 生成唯一场景 ID
+    const appid = process.env.ORG_APPID;
+    const redirect_uri = 'https://www.xuebubu.org/api/auth/callback'; // 注意：这里传原始地址，让前端传给 WxLogin，或者这里 encode 也可以
+    // 建议返回原始地址，WxLogin 内部或前端处理 encode，或者保持一致使用 encodeURIComponent 后的
+    const redirect_uri_encoded = encodeURIComponent(redirect_uri);
+
+    try {
+        // 在 Redis 中创建登录会话 (保持不变)
+        const redisKey = `wechat:login:${sceneId}`;
+        await redisClient.set(redisKey, JSON.stringify({
+            status: 'pending',
+            invitationCode: invitationCode || null // 存进去
+        }), {
+            EX: 5 * 60 // 5分钟过期
+        });
+
+        // 移除 QRCode.toDataURL 相关代码
+        // 直接返回参数给前端
+        res.json({
+            appid: appid,
+            redirect_uri: redirect_uri_encoded,
+            scope: 'snsapi_login',
+            state: sceneId, // 这里的 sceneId 就是前端的 wechatId
+            wechatId: sceneId
+        });
+    } catch (error) {
+        console.error('写入 Redis 失败:', error);
+        res.status(500).json({ message: '获取登录参数失败' });
+    }
+});
+
+// 2. 微信授权回调
+app.get('/api/auth/callback', async (req, res) => {
+    const { code, state: sceneId } = req.query;
+
+    if (!code || !sceneId) {
+        return res.status(400).send('缺少 code 或 state 参数');
+    }
+    const redisKey = `wechat:login:${sceneId}`;
+
+    try {
+        // 验证 state (sceneId) 的有效性
+        const sessionStr = await redisClient.get(redisKey);
+
+        if (!sessionStr) {
+            return res.status(404).send('二维码已过期或无效，请刷新页面后重试。');
+        }
+
+        // === 关键点：解析出之前存的邀请码 ===
+        const sessionData = JSON.parse(sessionStr);
+        const receivedInvitationCode = sessionData.invitationCode;
+
+        // 1. 用 code 换取 access_token
+        const tokenUrl = 'https://api.weixin.qq.com/sns/oauth2/access_token';
+        const tokenParams = new URLSearchParams({
+            appid: process.env.ORG_APPID,
+            secret: process.env.ORG_APPSECRET,
+            code,
+            grant_type: 'authorization_code',
+        });
+
+        // fetch 请求
+        const tokenRes = await fetch(`${tokenUrl}?${tokenParams}`);
+        const tokenData = await tokenRes.json();
+        const { access_token, openid, unionid } = tokenData;
+
+        if (!openid) {
+            // throw new Error('微信返回的数据中缺少 openid');
+            // 将具体的错误信息抛出，方便调试
+            throw new Error(`❌ 微信接口错误: ${tokenData.errmsg || '未知错误'} (错误码: ${tokenData.errcode})`);
+        }
+
+        // 2. 获取用户信息
+        const userInfoUrl = 'https://api.weixin.qq.com/sns/userinfo';
+        const userInfoParams = new URLSearchParams({
+            access_token,
+            openid,
+            lang: 'zh_CN'
+        });
+
+        // fetch 请求
+        const userInfoRes = await fetch(`${userInfoUrl}?${userInfoParams}`);
+        const userInfoData = await userInfoRes.json();
+        const { nickname, headimgurl, sex, city } = userInfoData;
+
+        // 1. 查找或创建用户 (数据库操作)
+        // 逻辑方案：优先根据 unionid 查找，如果没有则根据 openid (wechatId) 查找
+        let user;
+        if (unionid) {
+            user = await User.findOne({ unionid: unionid });
+        }
+
+        if (!user) {
+            user = await User.findOne({ wechatId: openid });
+            // 如果通过 openid 找到了老用户，但是该用户还没有 unionid，则为其补全（平滑迁移）
+            if (user && unionid) {
+                user.unionid = unionid;
+                await user.save();
+            }
+        }
+
+        if (!user) {
+            const userCount = await User.countDocuments();
+            const invitationCode = await generateInvitationCode(userCount);
+            user = new User({
+                username: `wx_${openid.slice(-8)}`,
+                nickname: nickname,
+                avatar: headimgurl,
+                loginType: 'wechat',
+                wechatId: openid,
+                unionid: unionid,
+                invitationCode: invitationCode,
+                sex: sex,
+                city: city,
+            });
+
+            // --- 新增：试用天数逻辑 ---
+            const trialConfig = await SystemConfig.findOne({ key: 'trial_days' });
+            const trialDays = trialConfig ? parseInt(trialConfig.value) : 0;
+            if (trialDays > 0) {
+                user.subscriptionExpiry = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000);
+            }
+
+            await user.save();
+
+            if (receivedInvitationCode) {
+                const inviter = await User.findOne({ invitationCode: receivedInvitationCode });
+                if (inviter) {
+                    user.invitedBy = inviter._id;
+                    await user.save();
+                    inviter.invitedCount = (inviter.invitedCount || 0) + 1;
+                    await inviter.save();
+                }
+            }
+        }
+
+        const newSessionId = uuidv4();
+        user.activeSessionId = newSessionId;
+        user.lastLoginIP = req.headers['x-forwarded-for']?.split(',').shift() || req.ip;
+        await user.save();
+
+        const token = jwt.sign(
+            { userId: user._id, sessionId: newSessionId },
+            process.env.token_secretKey,
+            { expiresIn: config.expiresIn }
+        );
+
+        // 3. 返回 HTML，将 Token 直接传回给父窗口
+        // 注意：我们将 targetOrigin 设为 '*' 以允许本地调试，生产环境建议设为您的域名
+        const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>登录成功</title>
+        <meta charset="utf-8">
+      </head>
+      <body>
+        <h3>登录成功，正在跳转...</h3>
+        <script>
+          try {
+            // 1. 直接将 Token 写入父窗口的 LocalStorage
+            // 注意：因为是同源，我们可以直接操作 window.top.localStorage
+            window.top.localStorage.setItem('token', '${token}');
+
+            // 2. 同时也存入用户信息
+            const userInfo = {
+              username: '${user.username}',
+              avatar: '${user.avatar}',
+              id: '${user._id}'
+            };
+            window.top.localStorage.setItem('userInfo', JSON.stringify(userInfo));
+
+            // 3. 强制父窗口跳转到主页
+            console.log('Backend: 登录成功，执行同源跳转');
+            window.top.location.href = '/';
+
+          } catch (e) {
+            console.error('自动跳转失败，尝试 PostMessage 备用方案', e);
+            // 备用方案：如果同源策略因某种原因失效，回退到 postMessage
+            window.top.postMessage({ 
+              type: 'WECHAT_LOGIN_SUCCESS', 
+              token: '${token}',
+              userInfo: {
+                 username: '${user.username}',
+                 avatar: '${user.avatar}',
+                 id: '${user._id}'
+              }
+            }, '*');
+          }
+        </script>
+      </body>
+      </html>
+    `;
+
+        res.send(html);
+
+    } catch (error) {
+        console.error('微信回调处理失败:', error.response ? error.response.data : error.message);
+        // 可以在 Redis 中记录失败状态
+        await redisClient.set(redisKey, JSON.stringify({ status: 'failed', error: '回调处理失败' }), { EX: 60 });
+        res.status(500).send('微信授权失败，请重试。');
+    }
+});
+
 
 app.listen(port, () => {
     console.log(`International server listening on port ${port}`);

@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <title>用户管理 - 管理后台</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f7f9fc;
+            margin: 0;
+            padding: 40px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #2d3748;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            align-items: flex-end;
+        }
+
+        .form-group {
+            flex: 1;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: opacity 0.2s;
+            height: 42px;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background-color: #4299e1;
+            color: white;
+        }
+
+        .btn-success {
+            background-color: #48bb78;
+            color: white;
+        }
+
+        .btn-secondary {
+            background-color: #edf2f7;
+            color: #4a5568;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #edf2f7;
+        }
+
+        th {
+            background-color: #f8fafc;
+            color: #718096;
+            font-weight: 600;
+        }
+
+        .user-item {
+            padding: 15px;
+            border-bottom: 1px solid #edf2f7;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-vip {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-user {
+            background-color: #ebf8ff;
+            color: #2b6cb0;
+        }
+
+        .badge-admin {
+            background-color: #fed7d7;
+            color: #9b2c2c;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 30px;
+            align-items: center;
+        }
+
+        .user-actions {
+            display: flex;
+            gap: 10px;
+            flex-direction: column;
+        }
+
+        .sub-row {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+            margin-top: 5px;
+        }
+
+        .sub-row input {
+            width: 60px;
+            padding: 5px;
+        }
+
+        .stat-cell {
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>用户管理</h1>
+        <div class="card">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="searchInput">搜索用户 (昵称/邮箱)</label>
+                    <input type="text" id="searchInput" placeholder="输入关键字...">
+                </div>
+                <button class="btn btn-primary" onclick="searchUsers()">搜索</button>
+                <button class="btn btn-secondary" onclick="resetSearch()">重置</button>
+            </div>
+        </div>
+
+        <div class="card" id="userCard">
+            <table id="userTable">
+                <thead>
+                    <tr>
+                        <th>基本信息</th>
+                        <th>状态/身份</th>
+                        <th>资产 (学分/金币)</th>
+                        <th>有效期/注册时间</th>
+                        <th>管理操作</th>
+                    </tr>
+                </thead>
+                <tbody id="userList">
+                    <!-- 动态加载 -->
+                </tbody>
+            </table>
+            <div class="pagination" id="pagination">
+                <!-- 动态加载 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        let totalPages = 1;
+        let currentQuery = '';
+
+        async function fetchUsers(page = 1, query = '') {
+            try {
+                const res = await fetch(`/api/users/list?page=${page}&query=${encodeURIComponent(query)}`, {
+                    headers: { 'Authorization': 'admin' }
+                });
+                const data = await res.json();
+                renderUsers(data.users);
+                renderPagination(data.page, data.totalPages);
+                currentPage = data.page;
+                totalPages = data.totalPages;
+            } catch (err) {
+                console.error('获取用户列表失败', err);
+            }
+        }
+
+        function renderUsers(users) {
+            const tbody = document.getElementById('userList');
+            tbody.innerHTML = '';
+            users.forEach(user => {
+                const tr = document.createElement('tr');
+                const isVip = user.subscriptionExpiry && new Date(user.subscriptionExpiry) > new Date();
+                const expiryStr = user.subscriptionExpiry ? new Date(user.subscriptionExpiry).toLocaleDateString() : '未开通';
+
+                tr.innerHTML = `
+                    <td>
+                        <div style="font-weight: 600;">${user.nickname}</div>
+                        <div style="font-size: 0.85rem; color: #718096;">${user.email || '无邮箱'}</div>
+                    </td>
+                    <td>
+                        <span class="badge ${isVip ? 'badge-vip' : ''}">${isVip ? 'VIP' : '普通用户'}</span>
+                        <div style="margin-top: 5px;">
+                            <select onchange="updateUserType('${user._id}', this.value)" style="width: auto; padding: 2px 5px; height: auto;">
+                                <option value="user" ${user.userType === 'user' ? 'selected' : ''}>基础用户</option>
+                                <option value="admin" ${user.userType === 'admin' ? 'selected' : ''}>管理员</option>
+                                <option value="support" ${user.userType === 'support' ? 'selected' : ''}>客服人员</option>
+                            </select>
+                        </div>
+                    </td>
+                    <td class="stat-cell">
+                        <div>学分: <strong>${user.credits || 0}</strong></div>
+                        <div>金币: <strong>${user.golds || 0}</strong></div>
+                    </td>
+                    <td style="font-size: 0.85rem;">
+                        <div>过期: ${expiryStr}</div>
+                        <div>注册: ${new Date(user.createdAt).toLocaleDateString()}</div>
+                    </td>
+                    <td>
+                        <div class="user-actions">
+                            <div class="sub-row">
+                                <span style="font-size: 12px;">增订:</span>
+                                <input type="number" value="30" id="days-${user._id}">
+                                <button class="btn btn-success" style="padding: 2px 8px; height: 24px; font-size: 12px;" onclick="addSubscription('${user._id}')">确认</button>
+                            </div>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderPagination(page, total) {
+            const container = document.getElementById('pagination');
+            container.innerHTML = '';
+
+            const createBtn = (p, label, disabled = false) => {
+                const btn = document.createElement('button');
+                btn.className = `btn ${p === page ? 'btn-primary' : 'btn-secondary'}`;
+                btn.textContent = label;
+                btn.disabled = disabled;
+                btn.style.height = '36px';
+                btn.style.padding = '5px 12px';
+                if (!disabled) btn.onclick = () => fetchUsers(p, currentQuery);
+                return btn;
+            };
+
+            container.appendChild(createBtn(1, '<<', page === 1));
+            container.appendChild(createBtn(page - 1, '<', page === 1));
+
+            const start = Math.max(1, page - 2);
+            const end = Math.min(total, page + 2);
+
+            for (let i = start; i <= end; i++) {
+                container.appendChild(createBtn(i, i, false));
+            }
+
+            container.appendChild(createBtn(page + 1, '>', page === total));
+            container.appendChild(createBtn(total, '>>', page === total));
+
+            const info = document.createElement('span');
+            info.textContent = `共 ${total} 页`;
+            info.style.marginLeft = '10px';
+            container.appendChild(info);
+        }
+
+        function searchUsers() {
+            currentQuery = document.getElementById('searchInput').value.trim();
+            fetchUsers(1, currentQuery);
+        }
+
+        function resetSearch() {
+            document.getElementById('searchInput').value = '';
+            currentQuery = '';
+            fetchUsers(1, '');
+        }
+
+        async function updateUserType(id, type) {
+            try {
+                const res = await fetch(`/api/users/${id}/userType`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'admin' },
+                    body: JSON.stringify({ userType: type })
+                });
+                if (res.ok) alert('修改身份成功');
+                else alert('修改失败');
+            } catch (err) {
+                alert('网络错误');
+            }
+        }
+
+        async function addSubscription(id) {
+            const days = document.getElementById(`days-${id}`).value;
+            if (!confirm(`确认增加 ${days} 天会员时长？`)) return;
+            try {
+                const res = await fetch(`/api/users/${id}/add-subscription`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'admin' },
+                    body: JSON.stringify({ days })
+                });
+                if (res.ok) {
+                    alert('增加时长成功');
+                    fetchUsers(currentPage, currentQuery);
+                } else alert('操作失败');
+            } catch (err) {
+                alert('网络错误');
+            }
+        }
+
+        window.onload = () => fetchUsers(1);
+    </script>
+</body>
+
+</html>

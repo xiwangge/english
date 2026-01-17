@@ -1,5 +1,5 @@
 <template>
-  <div class="practice-container" :class="{ 'dark-mode': userStore.theme === 'dark', 'zen-mode': isZenMode }">
+  <div class="practice-container" :class="{ 'dark-mode': userStore.theme === 'dark', 'zen-mode': isZenMode, 'mobile-layout': isMobile, 'handwriting-mode': isWritingMode }">
     
     <header class="practice-header">
         <div class="header-left">
@@ -27,6 +27,7 @@
                 </label>
             </div>
 
+
             <button class="zen-btn" @click="toggleZenMode" :title="isZenMode ? '退出沉浸' : '进入沉浸模式'">
                 <svg v-if="!isZenMode" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
@@ -36,6 +37,22 @@
                 </svg>
                 <span class="btn-text">{{ isZenMode ? '退出' : '专注' }}</span>
             </button>
+
+            <!-- 【新增】发音老师快速切换 -->
+            <div class="teacher-quick-switch" @click.stop="isTeacherMenuOpen = !isTeacherMenuOpen">
+                <div class="current-teacher-avatar" :style="{ backgroundImage: `url('${userStore.user.preferredTeacher?.avatar || '/images/ai.png'}')` }"></div>
+                <div v-if="isTeacherMenuOpen" class="teacher-dropdown-menu">
+                    <div class="menu-item" @click.stop="quickUpdateTeacher(null)">
+                        <img src="/images/ai.png" class="mini-avatar">
+                        <span>Sydney</span>
+                    </div>
+                    <div v-for="teacher in teachers" :key="teacher._id" 
+                         class="menu-item" @click.stop="quickUpdateTeacher(teacher)">
+                        <img :src="teacher.avatar || '/images/ai.png'" class="mini-avatar">
+                        <span>{{ teacher.name }}</span>
+                    </div>
+                </div>
+            </div>
         </div>
         <div class="progress-bar-top-container">
             <div class="progress-bar-fill" id="lesson-progress" :style="{ width: progressPercentage + '%' }"></div>
@@ -65,7 +82,21 @@
                             <div class="phonetic-word" v-show="isPhoneticVisible">
                                 {{ word.phonetic === 'N/A' ? '😊' : formatPhonetic((word.phonetic || '').replace(/\//g, '')) || '&nbsp;' }}
                             </div>
+                            <input
+                                v-if="isWritingMode && index === currentWordIndex"
+                                class="word-placeholder active"
+                                :style="{ 'min-width': (word.text ? word.text.length : 0) + 'ch' }"
+                                :value="userInputs[activeItemIndex] && userInputs[activeItemIndex][index]"
+                                @input="handleHiddenInput"
+                                @keydown="handleKeyDown"
+                                :ref="el => { if (el) writingInputEl = el }"
+                                autocomplete="off" 
+                                autocorrect="off" 
+                                autocapitalize="none" 
+                                spellcheck="false"
+                            >
                             <span
+                                v-else
                                 class="word-placeholder"
                                 :class="{ active: index === currentWordIndex, wrong: isWordWrong(index) }"
                                 @click="setActiveWord(index)"
@@ -76,17 +107,47 @@
                     <template v-else-if="currentItem.type === 'word'">
                         <div class="word-mode-container">
                             <div class="phonetic-word" v-show="isPhoneticVisible">
-                                {{ currentItem.phonetic === 'N/A' ? '😊' : formatPhonetic(currentItem.phonetic) || '&nbsp;' }}
+                                <template v-if="currentItem.phonetic !== 'N/A' && phoneticSyllables.length > 0">
+                                    <div class="phonetic-segments-wrapper practice-mode">
+                                        <span class="phonetic-bracket">[</span>
+                                        <div class="phonetic-segments">
+                                            <span v-for="(pPart, index) in phoneticSyllables" 
+                                                  :key="`phonetic-seg-practice-${index}`"
+                                                  class="phonetic-tag candy-syllable"
+                                                  :class="`candy-color-${index % 7}`">
+                                                {{ formatPhonetic(pPart) }}
+                                            </span>
+                                        </div>
+                                        <span class="phonetic-bracket">]</span>
+                                    </div>
+                                </template>
+                                <template v-else>
+                                    {{ currentItem.phonetic === 'N/A' ? '😊' : formatPhonetic(currentItem.phonetic) || '&nbsp;' }}
+                                </template>
                             </div>
                             <div class="word-placeholders-wrapper">
+                            <template v-for="(word, index) in currentWords" :key="`word-instance-${index}`">
+                                <input
+                                    v-if="isWritingMode && index === currentWordIndex"
+                                    class="word-placeholder active"
+                                    :style="{ 'min-width': (word.text ? word.text.length : 0) + 'ch' }"
+                                    :value="userInputs[activeItemIndex] && userInputs[activeItemIndex][index]"
+                                    @input="handleHiddenInput"
+                                    @keydown="handleKeyDown"
+                                    :ref="el => { writingInputEl = el }"
+                                    autocomplete="off" 
+                                    autocorrect="off" 
+                                    autocapitalize="none" 
+                                    spellcheck="false"
+                                >
                                 <span
-                                    v-for="(word, index) in currentWords"
-                                    :key="`word-instance-${index}`"
+                                    v-else
                                     class="word-placeholder"
                                     :style="{ 'min-width': (word.text ? word.text.length : 0) + 'ch' }"
                                     :class="{ active: index === currentWordIndex, wrong: isWordWrong(index) }"
                                     @click="setActiveWord(index)"
                                 >{{ userInputs[activeItemIndex] && userInputs[activeItemIndex][index] }}</span>
+                            </template>
                             </div>
                         </div>
                     </template>
@@ -151,16 +212,13 @@
         <div class="nav-arrow" id="next-sentence">›</div>
     </main>
 
-    <footer class="practice-footer">
+    <footer class="practice-footer" v-if="!isMobile">
         <div class="hotkey-group">
             <kbd>空格/→</kbd> <span>跳格</span>
         </div>
         <div class="hotkey-group">
             <kbd>Shift</kbd><kbd>F</kbd><span>播放</span>
         </div>
-        <!-- <div class="hotkey-group">
-            <kbd>Ctrl1</kbd> <kbd>Q</kbd> <span>生词</span>
-        </div> -->
         <div class="hotkey-group">
             <kbd>Enter</kbd> <span>提交</span>
         </div>
@@ -168,9 +226,65 @@
             <kbd>↑</kbd> <kbd>↓</kbd> <span>显示/隐藏答案</span>
         </div>
     </footer>
+
+    <!-- 📱 移动端操作栏 -->
+    <footer class="mobile-action-bar" v-if="isMobile">
+        <button class="mobile-btn" @click="playCurrentAudio">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+            <span>重播</span>
+        </button>
+        <button class="mobile-btn" :class="{ 'active': isWritingMode }" @click="isWritingMode = !isWritingMode">
+            <svg v-if="!isWritingMode" viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                <path d="M4 11h5V5H4v6zm0 7h5v-6H4v6zm6 0h5v-6h-5v6zm6 0h5v-6h-5v6zm-6-7h5V5h-5v6zm6-6v6h5V5h-5z"/>
+            </svg>
+            <svg v-else viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+            </svg>
+            <span>{{ isWritingMode ? '手写' : '点选' }}</span>
+        </button>
+        <button class="mobile-btn" @click="toggleAnswerDisplay">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+            <span>提示</span>
+        </button>
+        <button class="mobile-btn" @click="handleUndo" :style="{ opacity: clickedStack.length ? 1 : 0.3 }">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M22 3H7c-.69 0-1.23.35-1.59.88L0 12l5.41 8.11c.36.53.9.89 1.59.89h15c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-3 12.59L17.59 17 14 13.41 10.41 17 9 15.59 12.59 12 9 8.41 10.41 7 14 10.59 17.59 7 19 8.41 15.41 12 19 15.59z"/></svg>
+            <span>退格</span>
+        </button>
+        <button class="mobile-btn primary" @click="checkCurrentItem" v-if="!isAnswerShown">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+            <span>提交</span>
+        </button>
+        <button class="mobile-btn success" @click="moveToNextItem" v-else>
+            <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M5.88 4.12L13.76 12l-7.88 7.88L8 22l10-10L8 2z"/></svg>
+            <span>下一题</span>
+        </button>
+    </footer>
+
+    <!-- 📱 移动端字符/单词方块选择区 -->
+    <div class="scrambled-container" v-if="isMobile && !isWritingMode && !isAnswerShown">
+        <div 
+            v-for="opt in scrambledOptions" 
+            :key="opt.id" 
+            class="option-tile"
+            :class="[opt.colorClass, { 'used': opt.used }]"
+            @click="handleOptionClick(opt)"
+        >
+            {{ opt.label }}
+        </div>
+    </div>
 </div>
 
-<input type="text" id="hidden-input" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" dir="ltr">
+<input 
+  type="text" 
+  id="hidden-input" 
+  ref="hiddenInput"
+  :inputmode="(isMobile && !isWritingMode) ? 'none' : 'text'"
+  autocomplete="off" 
+  autocorrect="off" 
+  autocapitalize="none" 
+  spellcheck="false" 
+  dir="ltr"
+>
 </template>
 
 <script setup>
@@ -184,6 +298,16 @@ import { userStore } from '../store/user.js';
 
 // 1. 沉浸模式状态
 const isZenMode = ref(false);
+
+// 2. 输入模式状态 (打散词块 vs 直接输入)
+const isWritingMode = ref(localStorage.getItem('practice_writing_mode') === 'true');
+
+watch(isWritingMode, (newVal) => {
+    localStorage.setItem('practice_writing_mode', newVal);
+    if (newVal) {
+        nextTick(() => focusHiddenInput());
+    }
+});
 
 const setHeaderBgColor = inject('setHeaderBgColor');
     const updateHeaderColor = () => {
@@ -234,6 +358,139 @@ const syllables = ref([]); // 新增：存储音节
 const phoneticSyllables = ref([]); // 新增：存储音标音节
 const activeSyllableIndex = ref(-1); // 新增：当前高亮的音节索引
 const loadingSyllables = ref(false); // 新增：控制音节加载状态
+const isTeacherMenuOpen = ref(false);
+const writingInputEl = ref(null); // 处理手写模式下的输入框聚焦
+const teachers = ref([]);
+const fetchUserInfo = inject('fetchUserInfo');
+
+// --- 📱 移动端/平板适配逻辑 ---
+const isMobile = ref(false);
+
+function checkIsMobile() {
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const isIPad = /iPad|Macintosh/i.test(navigator.userAgent) && isTouchDevice;
+
+    isMobile.value = 
+        /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+        isIPad ||
+        window.innerWidth <= 1100; // 只要屏幕宽度小于 1100，就进入移动/平板模式
+}
+
+checkIsMobile();
+window.addEventListener('resize', checkIsMobile);
+
+const scrambledOptions = ref([]); // 存放打乱的字母或单词方块
+const touchStatus = ref({ startX: 0, startY: 0 });
+const clickedStack = ref([]); // 📥 撤销栈
+
+// 生成打乱的选项
+function generateOptions() {
+    const item = currentItem.value;
+    if (!item || !isMobile.value) return;
+
+    clickedStack.value = []; // 切换题目重置栈
+
+    const colorClasses = ['color-1', 'color-2', 'color-3', 'color-4', 'color-5', 'color-6'];
+
+    if (item.type === 'word') {
+        // 单词：拆分为字母
+        const letters = item.text.split('');
+        scrambledOptions.value = letters.map((char, index) => ({
+            id: `char-${index}`,
+            label: char,
+            used: false,
+            colorClass: colorClasses[Math.floor(Math.random() * colorClasses.length)]
+        })).sort(() => Math.random() - 0.5);
+    } else if (item.type === 'sentence') {
+        // 句子：拆分为单词
+        scrambledOptions.value = item.words.map((word, index) => ({
+            id: `word-${index}`,
+            label: word.text,
+            used: false,
+            colorClass: colorClasses[Math.floor(Math.random() * colorClasses.length)]
+        })).sort(() => Math.random() - 0.5);
+    }
+}
+
+// 处理方块点击
+function handleOptionClick(option) {
+    if (option.used || isAnswerShown.value) return;
+
+    const currentInputs = userInputs.value[activeItemIndex.value] || [];
+    
+    if (currentItem.value.type === 'word') {
+        // 单词模式：逐个字符填入
+        const targetWord = currentItem.value.text;
+        const currentProgress = currentInputs[0] || '';
+        
+        // 自动检查拼写顺序 (Guided Mode)
+        if (option.label === targetWord[currentProgress.length]) {
+            currentInputs[0] = currentProgress + option.label;
+            option.used = true;
+            clickedStack.value.push(option); // 入栈
+            userInputs.value[activeItemIndex.value] = [...currentInputs];
+            
+            // 拼写完成自动检查
+            if (currentInputs[0].length === targetWord.length) {
+                checkCurrentItem();
+            }
+        } else {
+            // 选错了
+            triggerShake();
+        }
+    } else {
+        // 句子模式：填入当前激活的单词槽
+        currentInputs[currentWordIndex.value] = option.label;
+        option.used = true;
+        clickedStack.value.push(option); // 入栈
+        userInputs.value[activeItemIndex.value] = [...currentInputs];
+        
+        // 自动跳转到下一个单词槽
+        if (currentWordIndex.value < currentWords.value.length - 1) {
+            currentWordIndex.value++;
+        } else {
+            checkCurrentItem();
+        }
+    }
+}
+
+// 🔙 撤销上一步
+function handleUndo() {
+    if (clickedStack.value.length === 0 || isAnswerShown.value) return;
+
+    const lastOption = clickedStack.value.pop();
+    lastOption.used = false;
+
+    const currentInputs = userInputs.value[activeItemIndex.value] || [];
+
+    if (currentItem.value.type === 'word') {
+        const text = currentInputs[0] || '';
+        currentInputs[0] = text.substring(0, text.length - 1);
+    } else {
+        // 句子模式：退回上一个槽位
+        if (currentWordIndex.value > 0) {
+            // 如果当前槽位是空的且不是第一个（说明刚填完上一个自动跳过来的）
+            if (!currentInputs[currentWordIndex.value]) {
+                currentWordIndex.value--;
+            }
+            currentInputs[currentWordIndex.value] = null;
+        } else if (currentInputs[0]) {
+            // 第一个槽位有东西
+            currentInputs[0] = null;
+        }
+    }
+    userInputs.value[activeItemIndex.value] = [...currentInputs];
+}
+
+function triggerShake() {
+    contentWrapper.value?.classList.add('shake');
+    setTimeout(() => contentWrapper.value?.classList.remove('shake'), 500);
+}
+
+// 监听切换或数据加载，重新生成选项
+watch([activeItemIndex, isMobile, practiceQueue], () => {
+    generateOptions();
+});
 
 // --- 进度持久化逻辑 ---
 const saveProgress = () => {
@@ -499,14 +756,17 @@ async function playCurrentAudio() {
     const item = currentItem.value;
     if (!item || !item.text) return;
     try {
-        //speakurl 切换线路
-        setAndPlayAudio(item.speakUrl);
-        // setAndPlayAudio('http://180:4000/hello_welcome.mp3');
-        // await playSpeech(item.text);
-    } catch (primaryError) {
-        console.warn(`Primary TTS failed: ${primaryError.message}. Trying backup.`);
-        if (item.speakUrl) setAndPlayAudio(item.speakUrl);
-        else console.error('Backup failed: No speakUrl available.');
+        let finalUrl = item.speakUrl;
+        const teacher = userStore.user.preferredTeacher;
+        
+        if (teacher && teacher.pathDir && finalUrl && finalUrl.includes('assets.xuebubu.com/mp3/')) {
+            // 将 https://assets.xuebubu.com/mp3/xxx.mp3 转换为 https://assets.xuebubu.com/mp3/teacher_dir/xxx.mp3
+            finalUrl = finalUrl.replace('assets.xuebubu.com/mp3/', `assets.xuebubu.com/mp3/${teacher.pathDir}/`);
+        }
+
+        setAndPlayAudio(finalUrl);
+    } catch (error) {
+        console.error('播放失败:', error);
     }
 }
 
@@ -546,6 +806,42 @@ async function loadNextUnit() {
     } catch (error) {
         console.error('加载数据失败:', error);
         if(chineseEl.value) chineseEl.value.textContent = `加载失败: ${error.message}`;
+    }
+}
+
+async function fetchTeachers() {
+    try {
+        const response = await fetch('/api/teachers', {
+            headers: { 'Authorization': token }
+        });
+        if (response.ok) {
+            teachers.value = await response.json();
+        }
+    } catch (error) {
+        console.error('获取老师列表失败:', error);
+    }
+}
+
+async function quickUpdateTeacher(teacher) {
+    try {
+        const response = await fetch('/api/user/preferred-teacher', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': token
+            },
+            body: JSON.stringify({ teacherId: teacher ? teacher._id : null })
+        });
+        if (response.ok) {
+            isTeacherMenuOpen.value = false;
+            if (fetchUserInfo) await fetchUserInfo();
+            // 切换后立即重播当前单词
+            setTimeout(() => {
+                playCurrentAudio();
+            }, 100);
+        }
+    } catch (error) {
+        console.error('切换老师失败:', error);
     }
 }
 
@@ -638,6 +934,16 @@ function checkCurrentItem() {
     if (isTransitioning.value || isAnswerShown.value) return;
 
     wrongWords.value.clear(); // Clear previous errors
+    
+    // 归一化函数：处理大小写、空格以及中英文/弯直撇号
+    const normalizeText = (str) => {
+        return (str || '')
+            .trim()
+            .toLowerCase()
+            .replace(/[\u2018\u2019]/g, "'") // 弯撇号归一化为直撇号
+            .replace(/[\u201c\u201d]/g, '"'); // 弯引号归一化为直引号
+    };
+
     const userAnswers = userInputs.value[activeItemIndex.value] || [];
     const correctAnswers = currentWords.value;
 
@@ -647,9 +953,9 @@ function checkCurrentItem() {
 
     if (item.type === 'word') {
         // 单词模式：所有输入都必须与 item.text 匹配
+        const normalizedExpected = normalizeText(item.text);
         for (let i = 0; i < currentWords.value.length; i++) {
-            const userAnswer = (userAnswers[i] || '').trim().toLowerCase();
-            if (userAnswer !== expectedAnswer) {
+            if (normalizeText(userAnswers[i]) !== normalizedExpected) {
                 allCorrect = false;
                 wrongWords.value.add(i);
             }
@@ -657,9 +963,7 @@ function checkCurrentItem() {
     } else {
         // 句子模式：逐个单词比对
         for (let i = 0; i < correctAnswers.length; i++) {
-            const userAnswer = (userAnswers[i] || '').trim().toLowerCase();
-            const correctAnswer = (correctAnswers[i]?.text || '').trim().toLowerCase();
-            if (userAnswer !== correctAnswer) {
+            if (normalizeText(userAnswers[i]) !== normalizeText(correctAnswers[i]?.text)) {
                 allCorrect = false;
                 wrongWords.value.add(i);
             }
@@ -708,27 +1012,31 @@ function toggleAnswerDisplay() {
 }
 
 function focusHiddenInput() {
-    if (!hiddenInput.value) return;
+    const doFocus = () => {
+        const inputEl = (isWritingMode.value && writingInputEl.value) ? writingInputEl.value : hiddenInput.value;
+        if (!inputEl) return;
 
-    // --- 核心修复：防止 iPad 倒着输入 ---
-    // 如果当前已经是聚焦状态且值没变，则不要去操作 .value 或 .select()
-    // 频繁设置 .value 在某些 iOS 版本会导致光标强制回到 index 0
-    const targetValue = isAnswerShown.value ? '' : (userInputs.value[activeItemIndex.value]?.[currentWordIndex.value] || '');
-    
-    if (document.activeElement === hiddenInput.value) {
-        if (hiddenInput.value.value === targetValue) {
-            return; // 已经同步且聚焦，不执行任何操作
+        const targetValue = isAnswerShown.value ? '' : (userInputs.value[activeItemIndex.value]?.[currentWordIndex.value] || '');
+        
+        if (document.activeElement === inputEl) {
+            if (inputEl.value === targetValue) {
+                return;
+            }
         }
-    }
 
-    hiddenInput.value.focus();
-    if (isAnswerShown.value) {
-        hiddenInput.value.value = '';
+        inputEl.focus();
+        if (isAnswerShown.value) {
+            inputEl.value = '';
+        } else {
+            inputEl.value = targetValue;
+            inputEl.select();
+        }
+    };
+
+    if (isWritingMode.value) {
+        nextTick(doFocus);
     } else {
-        hiddenInput.value.value = targetValue;
-        // 只有在非输入状态（切换单词、或者刚刚报错、或者刚刚点击进来）时才全选
-        // 如果是正在输入，则保持光标在末尾
-        hiddenInput.value.select();
+        doFocus();
     }
 }
 
@@ -746,9 +1054,9 @@ function nextWord() {
     
     const item = currentItem.value;
     if (item.type === 'word' && toggleThreeTimes.value?.checked) {
-        const currentInput = (userInputs.value[activeItemIndex.value]?.[currentWordIndex.value] || '').trim().toLowerCase();
-        const correctAnswer = (item.text || '').trim().toLowerCase();
-        if (currentInput !== correctAnswer) {
+        // 归一化比对
+        const normalizeText = (str) => (str || '').trim().toLowerCase().replace(/[\u2018\u2019]/g, "'");
+        if (normalizeText(userInputs.value[activeItemIndex.value]?.[currentWordIndex.value]) !== normalizeText(item.text)) {
             contentWrapper.value?.classList.add('shake');
             setTimeout(() => contentWrapper.value?.classList.remove('shake'), 500);
             focusHiddenInput();
@@ -834,6 +1142,7 @@ function handleKeyDown(e) {
 
 // --- Lifecycle Hook ---
 onMounted(() => {
+    fetchTeachers();
     // 注入 Header 颜色控制
     updateHeaderColor();
 
@@ -896,13 +1205,14 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-    const setHeaderBgColor = inject('setHeaderBgColor');
+    window.removeEventListener('touchstart', handleTouchStart);
+    window.removeEventListener('touchend', handleTouchEnd);
+    window.removeEventListener('resize', checkIsMobile);
+    if (animationFrameId) cancelAnimationFrame(animationFrameId);
+
     if (setHeaderBgColor) {
         setHeaderBgColor('transparent'); // Reset on component leave
     }
-
-    // 离开页面时，重置 Header 为透明
-    if (setHeaderBgColor) setHeaderBgColor('transparent');
 });
 
 // --- 音节拆分逻辑 ---
@@ -978,9 +1288,12 @@ const splitWord = async (item) => {
 
 // --- Watchers ---
 watch(currentItem, (newItem) => {
-  // 仅在当前项是单词且答案显示时，才执行音节拆分
-  if (newItem && newItem.type === 'word' && isAnswerShown.value) {
+  // 单词模式下始终加载音节拆分，无论是否显示答案
+  if (newItem && newItem.type === 'word') {
     splitWord(newItem);
+  } else {
+    syllables.value = [];
+    phoneticSyllables.value = [];
   }
 }, { immediate: true });
 
@@ -1097,6 +1410,16 @@ watch(isZenMode, updateHeaderColor); // 模式变了，Header 也要变
     transition: all 0.3s;
     border-radius: 2px 2px 0 0;
     cursor: text;
+    outline: none;
+    -webkit-appearance: none;
+    border-left: none;
+    border-right: none;
+    border-top: none;
+}
+
+input.word-placeholder {
+    background-color: transparent !important;
+    padding: 5px 10px;
 }
 
 .word-placeholder.active { 
@@ -1238,8 +1561,44 @@ watch(isZenMode, updateHeaderColor); // 模式变了，Header 也要变
     border-radius: 6px;
     transition: all 0.2s ease;
     user-select: none;
-    min-width: 20px;
+    min-width: 10px;
     text-align: center;
+}
+
+/* 🍬 糖果色音节 */
+.candy-syllable {
+    font-weight: 700;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.candy-color-0 { color: #FF616D !important; } /* 珊瑚红 */
+.candy-color-1 { color: #38CC77 !important; } /* 薄荷绿 */
+.candy-color-2 { color: #3A86FF !important; } /* 皇家蓝 */
+.candy-color-3 { color: #FFB302 !important; } /* 亮橙黄 */
+.candy-color-4 { color: #8338EC !important; } /* 魅惑紫 */
+.candy-color-5 { color: #FB5607 !important; } /* 烈焰橘 */
+.candy-color-6 { color: #00B4D8 !important; } /* 天空蓝 */
+
+.phonetic-segments-wrapper.practice-mode {
+    justify-content: center;
+    margin-bottom: 15px;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    padding: 10px 24px;
+    border-radius: 20px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    backdrop-filter: blur(5px);
+}
+
+.dark-mode .phonetic-segments-wrapper.practice-mode {
+    background: rgba(45, 55, 72, 0.4);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.phonetic-segments-wrapper.practice-mode .phonetic-tag {
+    font-size: 1.6rem;
+    padding: 2px 6px;
 }
 
 .phonetic-tag:hover, .phonetic-tag.active {
@@ -1308,9 +1667,8 @@ watch(isZenMode, updateHeaderColor); // 模式变了，Header 也要变
 }
 
 .word-mode-container .phonetic-word {
-    font-size: 2rem;
     margin-bottom: 12px;
-    opacity: 0.8;
+    opacity: 1;
 }
 
 /* Footer */
@@ -1410,9 +1768,227 @@ watch(isZenMode, updateHeaderColor); // 模式变了，Header 也要变
 /* 错误抖动 */
 .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
 @keyframes shake {
-    10%, 90% { transform: translate3d(-1px, 0, 0); } 
-    20%, 80% { transform: translate3d(2px, 0, 0); }
-    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 
     40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+/* =========================================
+   📱 移动端/平板适配 (Mobile & Tablet Specific Styles)
+   ========================================= */
+/* 使用 .mobile-layout 类来适配 iPad Pro 等大屏移动设备 */
+.mobile-layout {
+    padding: 5px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.mobile-layout .practice-header {
+    padding: 10px;
+}
+
+.mobile-layout .display-toggles, 
+.mobile-layout .hotkey-group, 
+.mobile-layout .nav-arrow {
+    display: none !important;
+}
+
+.mobile-layout .sentence-display h1 {
+    font-size: 1.5rem;
+    padding: 0 10px;
+}
+
+.mobile-layout .word-placeholder {
+    font-size: 1.25rem;
+    min-width: 40px !important;
+    margin: 2px;
+}
+
+/* 底部操作栏 */
+.mobile-layout .mobile-action-bar {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(0,0,0,0.05);
+    display: flex;
+    justify-content: space-around;
+    padding: 12px 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    z-index: 100;
+}
+
+.mobile-layout.dark-mode .mobile-action-bar {
+    background: rgba(26, 32, 44, 0.8);
+    border-top-color: rgba(255,255,255,0.1);
+}
+
+.mobile-layout .mobile-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    color: var(--text-color);
+    opacity: 0.7;
+    font-size: 0.75rem;
+    cursor: pointer;
+}
+
+.mobile-layout .mobile-btn.primary { opacity: 1; color: var(--primary-color); font-weight: bold; }
+.mobile-layout .mobile-btn.success { opacity: 1; color: #10b981; font-weight: bold; }
+.mobile-layout .mobile-btn.active { opacity: 1; color: var(--primary-color); font-weight: bold; }
+
+/* 选项方块区 */
+.mobile-layout .scrambled-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    padding: 15px;
+    background: rgba(0,0,0,0.02);
+    border-radius: 12px;
+    margin: 10px;
+    margin-bottom: 80px; /* 为底部操作栏留位 */
+}
+
+.mobile-layout.dark-mode .scrambled-container {
+    background: rgba(255,255,255,0.03);
+}
+
+.mobile-layout .option-tile {
+    padding: 10px 16px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+    color: var(--text-color);
+    font-weight: 600;
+    font-size: 1.1rem;
+    transition: all 0.2s;
+    border: 1px solid #efefef;
+    user-select: none;
+    cursor: pointer;
+}
+
+/* iPad Pro 等大屏幕移动设备下，进一步放大方块 */
+@media screen and (min-width: 1000px) {
+    .mobile-layout .option-tile {
+        padding: 15px 24px;
+        font-size: 1.5rem;
+        border-radius: 12px;
+    }
+}
+
+.mobile-layout.dark-mode .option-tile {
+    background: #2d3748;
+    border-color: #4a5568;
+}
+
+.mobile-layout .option-tile:active {
+    transform: scale(0.9);
+    opacity: 0.7;
+}
+
+/* 缤纷色彩方案 (Colorful Schemes) */
+.mobile-layout .color-1 { background: #E0F2FE; color: #0369A1; border-color: #BAE6FD !important; }
+.mobile-layout .color-2 { background: #DCFCE7; color: #15803D; border-color: #BBF7D0 !important; }
+.mobile-layout .color-3 { background: #F3E8FF; color: #7E22CE; border-color: #E9D5FF !important; }
+.mobile-layout .color-4 { background: #FFEDD5; color: #C2410C; border-color: #FED7AA !important; }
+.mobile-layout .color-5 { background: #FCE7F3; color: #BE185D; border-color: #FBCFE8 !important; }
+.mobile-layout .color-6 { background: #FEF9C3; color: #A16207; border-color: #FEF08A !important; }
+
+.mobile-layout.dark-mode .color-1 { background: rgba(3, 105, 161, 0.2); color: #7DD3FC; border-color: rgba(125, 211, 252, 0.3) !important; }
+.mobile-layout.dark-mode .color-2 { background: rgba(21, 128, 61, 0.2); color: #86EFAC; border-color: rgba(134, 239, 172, 0.3) !important; }
+.mobile-layout.dark-mode .color-3 { background: rgba(126, 34, 206, 0.2); color: #D8B4FE; border-color: rgba(216, 180, 254, 0.3) !important; }
+.mobile-layout.dark-mode .color-4 { background: rgba(194, 65, 12, 0.2); color: #FDBA74; border-color: rgba(253, 186, 116, 0.3) !important; }
+.mobile-layout.dark-mode .color-5 { background: rgba(190, 24, 93, 0.2); color: #F9A8D4; border-color: rgba(249, 168, 212, 0.3) !important; }
+.mobile-layout.dark-mode .color-6 { background: rgba(161, 98, 7, 0.2); color: #FDE047; border-color: rgba(253, 224, 71, 0.3) !important; }
+
+.mobile-layout .option-tile.used {
+    opacity: 0.2;
+    pointer-events: none;
+    transform: scale(0.9);
+    filter: grayscale(100%);
+}
+
+/* 兜底：如果只是屏幕窄，但不是移动设备（无 touch），也应用部分响应式样式 */
+@media (max-width: 1100px) {
+    .sentence-display h1 {
+        font-size: 1.8rem;
+    }
+    .word-placeholder {
+        font-size: 1.5rem;
+    }
+    .display-toggles, .hotkey-group, .nav-arrow {
+        display: none !important;
+    }
+}
+
+/* --- 在原有样式的最后添加新样式 --- */
+.teacher-quick-switch {
+    position: relative;
+    cursor: pointer;
+    margin-left: 10px;
+    z-index: 1001;
+}
+
+.current-teacher-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-size: cover;
+    background-position: center;
+    border: 2px solid var(--primary-color);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+}
+
+.current-teacher-avatar:hover {
+    transform: scale(1.1);
+}
+
+.teacher-dropdown-menu {
+    position: absolute;
+    top: 40px;
+    right: 0;
+    background: var(--bg-card-light);
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    width: 140px;
+    overflow: hidden;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.dark-mode .teacher-dropdown-menu {
+    background: var(--bg-card-dark);
+    border-color: var(--border-dark);
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    transition: background 0.2s;
+    font-size: 14px;
+    color: var(--text-color);
+}
+
+.menu-item:hover {
+    background: var(--primary-light);
+}
+
+.mini-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 </style>

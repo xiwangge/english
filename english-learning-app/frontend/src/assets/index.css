@@ -1,16 +1,16 @@
-
 /* --- 左侧导航栏 --- */
 .sidebar {
-    width: 250px;
-    background-color: var(--card-bg, #fff);
-    padding: 20px;
-    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
-    box-sizing: border-box;
-    position: sticky;
-    top: 0;
-    height: 100vh; /* 使侧边栏与视口同高 */
-    border-right: 1px solid var(--border-color, transparent);
-    transition: background-color 0.3s, border-color 0.3s;
+  width: 250px;
+  background-color: var(--card-bg, #fff);
+  padding: 20px;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+  box-sizing: border-box;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  /* 使侧边栏与视口同高 */
+  border-right: 1px solid var(--border-color, transparent);
+  transition: background-color 0.3s, border-color 0.3s;
 }
 
 /* --- 1. 基础容器优化 --- */
@@ -20,20 +20,28 @@
   cursor: pointer;
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  
+
   /* === 新增/修改的核心布局代码 === */
-  display: flex;             /* 开启 Flex 布局 */
-  align-items: center;       /* 垂直居中对齐 */
-  justify-content: flex-start; /* 内容从左开始 */
-  padding: 15px 20px;        /* 增加左右内边距，让整体看起来舒服不拥挤 */
-  gap: 12px;                 /* 头像和文字之间的间距 */
-  margin-bottom: 10px;       /* 稍微和下方的菜单拉开一点距离 */
+  display: flex;
+  /* 开启 Flex 布局 */
+  align-items: center;
+  /* 垂直居中对齐 */
+  justify-content: flex-start;
+  /* 内容从左开始 */
+  padding: 15px 20px;
+  /* 增加左右内边距，让整体看起来舒服不拥挤 */
+  gap: 12px;
+  /* 头像和文字之间的间距 */
+  margin-bottom: 10px;
+  /* 稍微和下方的菜单拉开一点距离 */
 }
 
 /* --- 2. 悬停效果 (Hover) --- */
 .user-info:hover {
-  background-color: rgba(255, 255, 255, 0.15); /* 稍微变亮 */
-  transform: translateY(-2px); /* 微微上浮 */
+  background-color: rgba(255, 255, 255, 0.15);
+  /* 稍微变亮 */
+  transform: translateY(-2px);
+  /* 微微上浮 */
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
@@ -44,32 +52,57 @@
 
 /* --- 3. 点击按压效果 (Active) --- */
 .user-info:active {
-  transform: scale(0.98); /* 微微缩小 */
+  transform: scale(0.98);
+  /* 微微缩小 */
 }
 
 /* --- 4. 设置提示图标 (Hover Hint) --- */
 .hover-hint {
   position: absolute;
-  right: 10px;        /* 靠右显示 */
-  top: 30%;
-  transform: translateY(-50%); /* 垂直居中 */
-  /* ... 其他样式保持不变 ... */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
   display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
   opacity: 0;
-  transition: all 0.3s ease;
-  background: rgba(0,0,0,0.6); /* 加个深色背景，防止看不清 */
-  padding: 4px 8px;
-  border-radius: 4px;
-  color: #fff;
-  font-size: 12px;
+  transition: opacity 0.3s ease;
+  z-index: 10;
 }
 
-/* 悬停时显示图标 */
+.hover-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
+.hover-action-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 6px 16px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  transition: all 0.2s;
+}
+
+.hover-action-item:hover {
+  background: rgba(244, 140, 37, 0.8);
+  transform: scale(1.05);
+}
+
+.hover-action-item.logout:hover {
+  background: rgba(255, 82, 82, 0.8);
+}
+
 .user-info:hover .hover-hint {
   opacity: 1;
-  transform: translateY(-50%) translateX(0);
 }
 
 /* 当显示 Loading 时，隐藏提示，避免重叠 */
@@ -86,7 +119,7 @@
   height: 100%;
   /* 玻璃拟态背景 */
   background: rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(4px); 
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -103,147 +136,169 @@
   width: 20px;
   height: 20px;
   border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: var(--primary-color); /* 使用您的主色调 */
+  border-top-color: var(--primary-color);
+  /* 使用您的主色调 */
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .user-avatar {
-    width: 40px;              /* 稍微改小一点点，显得更精致 (原来可能是 50px?) */
-    height: 40px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    flex-shrink: 0;           /* 关键：防止昵称太长时头像被挤扁 */
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  width: 40px;
+  /* 稍微改小一点点，显得更精致 (原来可能是 50px?) */
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  flex-shrink: 0;
+  /* 关键：防止昵称太长时头像被挤扁 */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 /* 昵称样式微调 */
 .welcome-text {
   font-size: 15px;
   font-weight: 600;
-  color: var(--text-primary);
-  
+  color: var(--text-color, #333);
+
   /* 防止昵称太长换行，超出显示省略号 */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 120px; /* 根据侧边栏宽度适当限制 */
+  max-width: 120px;
+  /* 根据侧边栏宽度适当限制 */
 }
 
 /* (可选) 如果您保留了 Welcome back 副标题 */
 .sub-text {
   font-size: 11px;
-  color: var(--text-secondary);
+  color: var(--text-color, #888);
+  opacity: 0.8;
   margin-top: 2px;
 }
 
 .user-greeting {
-    /* display: flex; */
-    flex-direction: column;    /* 如果有副标题，副标题会在昵称下面 */
-    justify-content: center;
-    text-align: left;          /* 强制左对齐 */
-    line-height: 1.2;
-    overflow: hidden;          /* 防止文字溢出 */
+  /* display: flex; */
+  flex-direction: column;
+  /* 如果有副标题，副标题会在昵称下面 */
+  justify-content: center;
+  text-align: left;
+  /* 强制左对齐 */
+  line-height: 1.2;
+  overflow: hidden;
+  /* 防止文字溢出 */
 }
 
 .user-greeting .name {
-    font-weight: bold;
-    color: var(--text-color, #333);
+  font-weight: bold;
+  color: var(--text-color, #333);
 }
 
 .nav-menu a {
-    display: flex;
-    align-items: center;
-    padding: 12px 15px;
-    text-decoration: none;
-    color: var(--text-color, #555);
-    font-size: 16px;
-    border-radius: 8px;
-    transition: background-color 0.2s, color 0.2s;
-    margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  padding: 12px 15px;
+  text-decoration: none;
+  color: var(--text-color, #555);
+  font-size: 16px;
+  border-radius: 8px;
+  transition: background-color 0.2s, color 0.2s;
+  margin-bottom: 8px;
 }
+
 /* Ensure dark mode styles are applied */
 :global(.dark) .nav-menu a {
-    color: #a0aec0;
+  color: #a0aec0;
 }
 
 /* 模拟图片中当前选中状态 */
 .nav-menu a.active {
-    background-color: #fcf0e2; /* 浅橙色背景 */
-    color: #e59f42; /* 橙色文字 */
-    font-weight: bold;
+  background-color: #fcf0e2;
+  /* 浅橙色背景 */
+  color: #e59f42;
+  /* 橙色文字 */
+  font-weight: bold;
 }
+
 :global(.dark) .nav-menu a.active {
-    background-color: rgba(229, 159, 66, 0.2);
-    color: #ed8936;
+  background-color: rgba(229, 159, 66, 0.2);
+  color: #ed8936;
 }
 
 .nav-menu a:hover:not(.active) {
-    background-color: var(--border-color, #f7f7f7);
+  background-color: var(--border-color, #f7f7f7);
 }
+
 :global(.dark) .nav-menu a:hover:not(.active) {
-    background-color: rgba(255, 255, 255, 0.05);
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
 .nav-menu .icon {
-    margin-right: 10px;
-    font-size: 1.1em;
+  margin-right: 10px;
+  font-size: 1.1em;
 }
 
 /* --- 整体布局 --- */
 .main-layout {
-    display: flex;
+  display: flex;
 }
 
 /* --- 右侧内容区域 --- */
 .content-area {
-    flex-grow: 1;
-    box-sizing: border-box;
-    /* padding is removed */
+  flex-grow: 1;
+  box-sizing: border-box;
+  /* padding is removed */
 }
 
 /* --- 顶部 Header --- */
 .top-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40px;
 }
 
 .top-header h2 {
-    font-size: 2.2em;
-    color: var(--text-color, #333);
-    margin: 0;
+  font-size: 2.2em;
+  color: var(--text-color, #333);
+  margin: 0;
 }
 
 .header-icons {
-    display: flex;
-    align-items: center;
+  display: flex;
+  align-items: center;
 }
 
 .header-icons .icon {
-    font-size: 1.5em;
-    color: var(--text-color, #555);
-    margin-left: 20px;
-    cursor: pointer;
+  font-size: 1.5em;
+  color: var(--text-color, #555);
+  margin-left: 20px;
+  cursor: pointer;
 }
 
 /* 1. 侧边栏布局：确保它是 Flex 容器 */
 .sidebar {
   display: flex;
   flex-direction: column;
-  height: 100vh; /* 占满全高 */
-  position: sticky; /* 保持 sticky 特性 */
+  height: 100vh;
+  /* 占满全高 */
+  position: sticky;
+  /* 保持 sticky 特性 */
   top: 0;
 }
 
@@ -254,12 +309,14 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 15px; /* 图片和 Logout 按钮的间距 */
+  gap: 15px;
+  /* 图片和 Logout 按钮的间距 */
 }
 
 /* 3. SVG 容器 */
 .mascot-container {
-  width: 160px; /* 控制笑脸的大小 */
+  width: 160px;
+  /* 控制笑脸的大小 */
   height: auto;
   transition: transform 0.3s ease;
 }
@@ -278,9 +335,14 @@
 
 /* 5. 眨眼动画定义 */
 @keyframes blink {
-  0%, 45%, 50%, 100% {
+
+  0%,
+  45%,
+  50%,
+  100% {
     transform: scaleY(1);
   }
+
   47.5% {
     transform: scaleY(0.1);
   }
@@ -305,13 +367,16 @@
   transition: color 0.2s;
   padding-bottom: 10px;
 }
+
 :global(.dark) .logout-container {
   color: #a0aec0;
 }
 
 .logout-container:hover {
-  color: #f48c25; /* 悬停变橙色 */
+  color: #f48c25;
+  /* 悬停变橙色 */
 }
+
 /* --- 登录提示模态框样式 --- */
 .modal-overlay {
   position: fixed;
@@ -393,4 +458,167 @@
 .btn-secondary:hover {
   background-color: var(--border-color, #e0e0e0);
   opacity: 0.9;
+}
+
+/* =========================================
+   📱 移动端支持 (Mobile & Tablet Support)
+   ========================================= */
+
+/* 1. 基础显隐控制 */
+.mobile-only {
+  display: none !important;
+}
+
+@media (max-width: 1100px) {
+  .desktop-only {
+    display: none !important;
+  }
+
+  .mobile-only {
+    display: flex !important;
+  }
+
+  .main-layout {
+    flex-direction: column;
+  }
+
+  .content-area {
+    width: 100vw;
+    overflow-x: hidden;
+  }
+
+  .content-header {
+    padding: 10px 15px;
+    border-bottom: none;
+  }
+}
+
+/* 2. 汉堡菜单按钮 (Hamburger) */
+.hamburger-menu {
+  background: none;
+  border: none;
+  padding: 10px;
+  cursor: pointer;
+}
+
+.hamburger-icon {
+  width: 24px;
+  height: 18px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.hamburger-icon span {
+  display: block;
+  height: 2px;
+  width: 100%;
+  background-color: var(--text-color, #333);
+  border-radius: 2px;
+  transition: 0.3s;
+}
+
+/* 3. 抽屉蒙层 (Drawer Overlay) */
+.drawer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+}
+
+/* 4. 侧边抽屉 (Mobile Drawer) */
+.mobile-drawer {
+  position: fixed;
+  top: 0;
+  right: -280px;
+  width: 280px;
+  height: 100vh;
+  background: var(--card-bg, #fff);
+  z-index: 1001;
+  transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
+}
+
+.mobile-drawer.is-open {
+  right: 0;
+}
+
+.drawer-user-info {
+  padding: 30px 20px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  border-bottom: 1px solid var(--border-color, #f0f0f0);
+}
+
+.drawer-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+}
+
+.drawer-user-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.drawer-nickname {
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.drawer-subtext {
+  font-size: 0.8rem;
+  color: #888;
+  margin-top: 4px;
+}
+
+.drawer-nav {
+  padding: 20px 10px;
+  flex: 1;
+}
+
+.drawer-nav a {
+  display: flex;
+  align-items: center;
+  padding: 15px;
+  border-radius: 12px;
+  text-decoration: none;
+  color: var(--text-color, #333);
+  margin-bottom: 5px;
+  gap: 12px;
+}
+
+.drawer-nav a.active {
+  background: #fcf0e2;
+  color: #e59f42;
+  font-weight: bold;
+}
+
+.drawer-footer {
+  padding: 20px;
+  border-top: 1px solid var(--border-color, #f0f0f0);
+}
+
+.drawer-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color, #ddd);
+  background: none;
+  color: var(--text-color, #333);
+  cursor: pointer;
+}
+
+/* 修复路由视图在移动端的间距 */
+@media (max-width: 1100px) {
+  .router-view-wrapper {
+    padding-bottom: 50px;
+  }
 }

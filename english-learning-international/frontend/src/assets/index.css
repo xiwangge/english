@@ -437,3 +437,27 @@
   background-color: var(--border-color, #e0e0e0);
   opacity: 0.9;
 }
+
+/* 📱 手机端适配 - 全局布局 */
+@media (max-width: 768px) {
+  .main-layout {
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  /* 彻底隐藏侧边栏，因为已经使用了右上角抽屉菜单 */
+  .sidebar {
+    display: none;
+  }
+
+  .content-area {
+    flex: 1;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .content-header {
+    padding: 10px 15px;
+  }
+}

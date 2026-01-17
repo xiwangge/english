@@ -23,7 +23,7 @@ export const userStore = reactive({
 
   // 设置用户信息
   setUser(userData) {
-    this.user = { ...this.user, ...userData };
+    this.user = { ...userData };
   },
 
   // 清除用户信息（例如，退出登录时）

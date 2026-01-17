@@ -17,6 +17,15 @@
           </div>
         </div>
 
+        <div class="game-card carrot-card" @click="navigateToGame('CarrotGame')">
+          <div class="bg-decoration"></div>
+          <div class="content-wrapper">
+            <div class="game-icon">🥕</div>
+            <h2>萝卜纸巾</h2>
+            <p>手势交互，趣味识词</p>
+          </div>
+        </div>
+
         <div class="game-card card-card disabled" @click="showComingSoon">
           <div class="bg-decoration"></div>
           <div class="content-wrapper">
@@ -201,6 +210,21 @@ p {
   height: 80px;
   background: rgba(255, 255, 255, 0.15);
   border-radius: 50%;
+}
+
+/* 萝卜卡片 */
+.carrot-card {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+.carrot-card .bg-decoration {
+  position: absolute;
+  bottom: -20px;
+  left: -20px;
+  width: 140px;
+  height: 140px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+  z-index: 1;
 }
 
 /* 卡牌卡片 */

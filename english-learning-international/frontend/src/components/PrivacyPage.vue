@@ -217,4 +217,27 @@ p {
 .animate-slide-up {
   animation: slideUp 0.6s ease forwards;
 }
+
+/* 📱 手机端适配 */
+@media (max-width: 768px) {
+  .privacy-page {
+    padding: 40px 15px;
+  }
+
+  .gradient-text {
+    font-size: 2rem;
+  }
+
+  .policy-content {
+    padding: 20px;
+  }
+
+  h2 {
+    font-size: 1.1rem;
+  }
+
+  p {
+    font-size: 0.95rem;
+  }
+}
 </style>

@@ -1156,4 +1156,50 @@ async function bindEmail() {
   gap: 1rem;
   padding-top: 2rem;
 }
+
+/* 📱 手机端适配 */
+@media (max-width: 768px) {
+  .page-title {
+    font-size: 1.75rem;
+    min-width: auto;
+  }
+
+  .settings-main {
+    padding-top: 1rem;
+  }
+
+  .card {
+    padding: 1rem;
+  }
+
+  .form-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .btn {
+    width: 100%;
+  }
+
+  .avatar-selection-row {
+    gap: 1rem;
+  }
+
+  .credit-banner {
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  .credit-value {
+    font-size: 1.75rem;
+  }
+
+  .form-input {
+    width: 100%;
+  }
+
+  .actions-row {
+    flex-direction: column;
+  }
+}
 </style>

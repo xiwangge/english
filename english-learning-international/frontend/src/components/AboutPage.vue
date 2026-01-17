@@ -63,6 +63,19 @@
             </p>
           </div>
         </section>
+        <section class="info-card full-width animate-slide-up" style="animation-delay: 0.5s">
+          <div class="icon-wrapper">
+            <span class="feature-icon">📚</span>
+          </div>
+          <h2>Data Source Attribution</h2>
+          <p style="font-size: 0.95rem; opacity: 0.8;">
+            Some Chinese translations and Pinyin data are based on the 
+            <a href="https://www.mdbg.net/chinese/dictionary?page=cedict" target="_blank" style="color: #f48c25; text-decoration: none;">CC-CEDICT</a> 
+            dictionary project. This data is licensed under the 
+            <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" style="color: #f48c25; text-decoration: none;">Creative Commons Attribution-ShareAlike 4.0 International License</a>. 
+            We are grateful to MDBG and its community for their contributions to open-source Chinese education.
+          </p>
+        </section>
       </div>
 
       <footer class="about-footer">

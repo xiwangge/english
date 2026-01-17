@@ -44,27 +44,27 @@ async function uploadFile(localPath, cosKey) {
     });
 }
 
-async function uploadFilesFromDir(localDir, cosPrefix) {
-    if (!fs.existsSync(localDir)) {
-        console.warn(`⚠️ 目录不存在: ${localDir}`);
+async function uploadFilesFromDir(currentDir, baseDir, cosPrefix) {
+    if (!fs.existsSync(currentDir)) {
+        console.warn(`⚠️ 目录不存在: ${currentDir}`);
         return;
     }
 
-    const files = fs.readdirSync(localDir);
-    const mp3Files = files.filter(file => file.endsWith('.mp3'));
+    const items = fs.readdirSync(currentDir, { withFileTypes: true });
 
-    if (mp3Files.length === 0) {
-        console.log(`ℹ️ 在 ${localDir} 中未发现 .mp3 文件，跳过。`);
-        return;
-    }
+    for (const item of items) {
+        const fullPath = path.join(currentDir, item.name);
 
-    console.log(`\n🚀 正在从 ${localDir} 上传 ${mp3Files.length} 个文件到 ${cosPrefix}...`);
+        if (item.isDirectory()) {
+            // 递归遍历子目录
+            await uploadFilesFromDir(fullPath, baseDir, cosPrefix);
+        } else if (item.isFile() && item.name.endsWith('.mp3')) {
+            // 计算相对于 baseDir 的路径，并转换为 POSIX 风格的 COS Key
+            const relativePath = path.relative(baseDir, fullPath);
+            const cosKey = path.posix.join(cosPrefix, relativePath);
 
-    for (const file of mp3Files) {
-        const localPath = path.join(localDir, file);
-        // 使用 path.posix.join 确保在不同系统上都生成斜杠 (/) 而不是反斜杠
-        const cosKey = path.posix.join(cosPrefix, file);
-        await uploadFile(localPath, cosKey);
+            await uploadFile(fullPath, cosKey);
+        }
     }
 }
 
@@ -82,12 +82,10 @@ async function main() {
     try {
         const audioOutputDir = path.join(__dirname, 'audio_output');
 
-        // 1. 上传 audio_output/*.mp3 -> mp3/
-        await uploadFilesFromDir(audioOutputDir, 'mp3');
+        console.log(`\n🚀 开始递归上传 ${audioOutputDir} 下的所有 .mp3 文件...`);
 
-        // 2. 上传 audio_output/word/*.mp3 -> mp3/word/
-        const wordDir = path.join(audioOutputDir, 'word');
-        await uploadFilesFromDir(wordDir, 'mp3/word');
+        // 统一从 audio_output 根目录开始递归上传到 mp3/ 前缀下
+        await uploadFilesFromDir(audioOutputDir, audioOutputDir, 'mp3');
 
         const duration = ((Date.now() - start) / 1000).toFixed(2);
         console.log(`\n✨ 所有上传任务已完成！(耗时: ${duration}s)`);

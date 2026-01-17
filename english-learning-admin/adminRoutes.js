@@ -13,6 +13,7 @@ import Product from '@english-learning/common/models/Product.js';
 import Order from '@english-learning/common/models/Order.js';
 import SystemConfig from '@english-learning/common/models/SystemConfig.js';
 import WithdrawalRequest from '@english-learning/common/models/WithdrawalRequest.js';
+import VoiceTeacher from '@english-learning/common/models/VoiceTeacher.js';
 import COS from 'cos-nodejs-sdk-v5';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -87,6 +88,48 @@ router.patch('/messages/:id/status', async (req, res) => {
         res.status(200).json(message);
     } catch (error) {
         res.status(500).json({ message: '审核失败' });
+    }
+});
+
+// 获取分页用户列表
+router.get('/users/list', async (req, res) => {
+    try {
+        const token = req.headers.authorization;
+        if (token !== 'admin') {
+            return res.status(403).json({ message: '无权访问' });
+        }
+
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const skip = (page - 1) * limit;
+        const query = req.query.query || '';
+
+        let filter = {};
+        if (query) {
+            filter = {
+                $or: [
+                    { nickname: { $regex: query, $options: 'i' } },
+                    { email: { $regex: query, $options: 'i' } }
+                ]
+            };
+        }
+
+        const total = await User.countDocuments(filter);
+        const users = await User.find(filter)
+            .select('nickname email userType credits golds subscriptionExpiry createdAt')
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+
+        res.status(200).json({
+            users,
+            total,
+            page,
+            totalPages: Math.ceil(total / limit)
+        });
+    } catch (error) {
+        console.error('获取用户列表失败:', error);
+        res.status(500).json({ message: '服务器获取用户列表失败' });
     }
 });
 
@@ -300,7 +343,7 @@ const replaceCosDomain = (books) => {
 // 获取所有书籍 包含下架的
 router.get('/book/list', async (req, res) => {
     try {
-        const books = await Book.find();
+        const books = await Book.find().select('-units');
         res.status(200).json(replaceCosDomain(books));
     } catch (error) {
         console.error('获取所有书籍失败:', error);
@@ -317,7 +360,7 @@ router.get('/book/search', async (req, res) => {
             query = { bookName: { $regex: bookName, $options: 'i' } };
         }
 
-        const books = await Book.find(query);
+        const books = await Book.find(query).select('-units');
         res.status(200).json(replaceCosDomain(books));
     } catch (error) {
         console.error('搜索书籍失败:', error);
@@ -755,14 +798,94 @@ router.post('/words/update', async (req, res) => {
     }
 });
 
+// --- 发音老师管理 API ---
+
+// 获取所有老师
+router.get('/teachers', async (req, res) => {
+    try {
+        const teachers = await VoiceTeacher.find();
+        res.status(200).json(teachers);
+    } catch (error) {
+        res.status(500).json({ message: '获取老师列表失败' });
+    }
+});
+
+// 创建/更新老师
+router.post('/teachers', async (req, res) => {
+    try {
+        const token = req.headers.authorization;
+        if (token !== 'admin') return res.status(403).json({ message: '无权访问' });
+
+        const { _id, name, pathDir, avatar, exampleSentence, description, isActive } = req.body;
+
+        if (_id) {
+            const teacher = await VoiceTeacher.findByIdAndUpdate(_id, {
+                name, pathDir, avatar, exampleSentence, description, isActive
+            }, { new: true });
+            return res.status(200).json({ message: '老师信息更新成功', teacher });
+        } else {
+            const newTeacher = new VoiceTeacher({
+                name, pathDir, avatar, exampleSentence, description, isActive
+            });
+            await newTeacher.save();
+            return res.status(201).json({ message: '老师创建成功', teacher: newTeacher });
+        }
+    } catch (error) {
+        console.error('保存老师信息失败:', error);
+        res.status(500).json({ message: '保存老师信息失败' });
+    }
+});
+
+// 删除老师
+router.delete('/teachers/:id', async (req, res) => {
+    try {
+        const token = req.headers.authorization;
+        if (token !== 'admin') return res.status(403).json({ message: '无权访问' });
+
+        await VoiceTeacher.findByIdAndDelete(req.params.id);
+        res.status(200).json({ message: '老师已成功删除' });
+    } catch (error) {
+        res.status(500).json({ message: '删除老师失败' });
+    }
+});
+
+// 获取老师选择统计
+router.get('/teachers/stats', async (req, res) => {
+    try {
+        const stats = await User.aggregate([
+            { $match: { preferredTeacher: { $ne: null } } },
+            { $group: { _id: "$preferredTeacher", count: { $sum: 1 } } }
+        ]);
+
+        const teachers = await VoiceTeacher.find().lean();
+        const results = teachers.map(t => {
+            const stat = stats.find(s => s._id.toString() === t._id.toString());
+            return {
+                ...t,
+                userCount: stat ? stat.count : 0
+            };
+        });
+
+        // 计算默认老师（未设置偏好的用户）
+        const defaultCount = await User.countDocuments({ preferredTeacher: null });
+        results.push({
+            name: '默认老师',
+            pathDir: '',
+            userCount: defaultCount,
+            isDefault: true
+        });
+
+        res.status(200).json(results);
+    } catch (error) {
+        res.status(500).json({ message: '获取老师统计失败' });
+    }
+});
+
 // --- 提现管理 API ---
 
 // 获取提现申请列表
 router.get('/withdrawals', async (req, res) => {
     try {
-        const token = req.headers.authorization;
-        if (token !== 'admin') return res.status(403).json({ message: '无权访问' });
-
         const { status, query } = req.query;
         let filter = {};
         if (status) filter.status = status;
@@ -909,6 +1032,45 @@ router.post('/products/update', async (req, res) => {
     } catch (error) {
         console.error('更新产品价格失败:', error);
         res.status(500).json({ message: '服务器更新产品价格失败' });
+    }
+});
+
+// 更新句子的音频 URL 和中文翻译
+router.patch('/book/:bookId/sentence/:sentenceId/update', async (req, res) => {
+    try {
+        const token = req.headers.authorization;
+        if (token !== 'admin') {
+            return res.status(403).json({ message: '无权访问' });
+        }
+
+        const { bookId, sentenceId } = req.params;
+        const { speakUrl, chinese } = req.body;
+
+        const book = await Book.findById(bookId);
+        if (!book) {
+            return res.status(404).json({ message: '书籍未找到' });
+        }
+
+        let sentenceFound = false;
+        for (const unit of book.units) {
+            const sentence = unit.sentences.id(sentenceId);
+            if (sentence) {
+                if (speakUrl !== undefined) sentence.speakUrl = speakUrl;
+                if (chinese !== undefined) sentence.chinese = chinese;
+                sentenceFound = true;
+                break;
+            }
+        }
+
+        if (!sentenceFound) {
+            return res.status(404).json({ message: '句子未找到' });
+        }
+
+        await book.save();
+        res.status(200).json({ message: '句子信息更新成功' });
+    } catch (error) {
+        console.error('更新句子信息失败:', error);
+        res.status(500).json({ message: '服务器更新句子信息失败' });
     }
 });
 

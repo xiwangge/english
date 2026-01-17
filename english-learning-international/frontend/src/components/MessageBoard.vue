@@ -834,4 +834,58 @@ onUnmounted(() => {
   padding-left: 1rem;
   padding-right: 1rem;
 }
+
+/* 📱 手机端适配 */
+@media (max-width: 768px) {
+  .page-title {
+    font-size: 1.75rem;
+  }
+  
+  .page-header {
+    padding: 0.5rem;
+  }
+
+  .action-bar {
+    padding-left: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .btn-primary {
+    width: 100%;
+  }
+
+  .reply-item {
+    padding-left: 0.5rem;
+  }
+
+  .reply-input-area {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .btn-reply {
+    width: 100%;
+    height: auto;
+    padding: 10px;
+    margin-top: 5px;
+  }
+
+  .vote-group {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .vote-buttons {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .btn-vote {
+    flex: 1;
+    font-size: 12px;
+    padding: 0 5px;
+  }
+}
 </style>

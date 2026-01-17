@@ -23,6 +23,13 @@
           <div class="tab-header">
             <button
               class="tab-btn"
+              :class="{ active: activeTab === 'wechat' }"
+              @click="switchTab('wechat')"
+            >
+              微信扫码
+            </button>
+            <button
+              class="tab-btn"
               :class="{ active: activeTab === 'email' }"
               @click="switchTab('email')"
             >
@@ -77,9 +84,22 @@
             </div>
             
             <div class="privacy-agreement">
-              登录即代表您已阅读并同意我们的 
-              <router-link :to="{ name: 'privacy' }" class="privacy-link">隐私政策</router-link>
+              <input type="checkbox" id="agree" v-model="agreeToTerms" class="privacy-checkbox">
+              <label for="agree">
+                登录即代表您已阅读并同意我们的 
+                <router-link :to="{ name: 'privacy' }" class="privacy-link">隐私政策</router-link>
+              </label>
             </div>
+          </div>
+
+          <div class="tab-content wechat-content" v-show="activeTab === 'wechat'">
+            <div class="qr-container" style="height: 220px; display: flex; align-items: center; justify-content: center; background: transparent;">
+              <div id="wechat_qr_container" ref="messageRef"></div>
+            </div>
+            
+            <p class="qr-hint" style="cursor: pointer; color: #666; margin-top: 0;" @click="wechatLogin">
+              <span style="font-size: 12px; color: #999;">(二维码不显示？点击这里刷新)</span>
+            </p>
           </div>
 
         </div>
@@ -92,12 +112,38 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useToast } from 'vue-toastification';
 
+// === 1. 定义微信 iframe 的自定义样式 (CSS 转 Base64) ===
+// 作用：隐藏标题、缩小二维码、去掉边框
+const customWechatStyle = `data:text/css;base64,${btoa(`
+  .impowerBox .title {display: none !important;}
+  .impowerBox .qrcode {width: 190px !important; height: 190px !important; border: none !important; margin: 0 !important;}
+  .main {height: 100% !important; display: flex !important; align-items: center !important; justify-content: center !important; padding-top:80px;}
+  .impowerBox {display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important;}
+  body {background-color: transparent !important; height: 100%;}
+`)}`;
+
+// 动态加载微信 JS SDK 的辅助函数
+const loadWxLoginScript = () => {
+  return new Promise((resolve, reject) => {
+    if (window.WxLogin) {
+      resolve();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://res.wx.qq.com/connect/zh_CN/htmledition/js/wxLogin.js';
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+};
+
 // --- 状态变量 ---
 const activeTab = ref('email');
 const email = ref('');
 const verificationCode = ref('');
 const sendButtonText = ref('发送验证码');
 const isCountingDown = ref(false);
+const agreeToTerms = ref(true);
 const messageRef = ref(null);
 const toast = useToast();
 
@@ -106,6 +152,7 @@ let invitationCode = '';
 
 // --- 逻辑函数 ---
 function switchTab(tab) {
+  if (activeTab.value === tab) return;
   activeTab.value = tab;
   if (tab === 'wechat') wechatLogin();
 }
@@ -144,6 +191,7 @@ async function handleSendCodeClick() {
 }
 
 async function handleLoginClick() {
+  if (!agreeToTerms.value) { toast.error('请先阅读并同意隐私政策'); return; }
   if (!email.value || !verificationCode.value) { toast.error('邮箱和验证码不能为空！'); return; }
   try {
     const response = await fetch('/api/loginWithVerificationCode', {
@@ -165,6 +213,54 @@ async function handleLoginClick() {
   } catch (error) { toast.error('登录失败，请稍后再试'); }
 }
 
+// === 微信登录逻辑 ===
+const handleWechatMessage = (event) => {
+  if (!event.data || event.data.type !== 'WECHAT_LOGIN_SUCCESS') {
+    return;
+  }
+
+  console.log('Frontend: 收到登录成功消息', event.data);
+  const { token } = event.data;
+
+  if (token) {
+    localStorage.setItem('token', token);
+    toast.success('登录成功！');
+    window.removeEventListener('message', handleWechatMessage);
+    window.location.href = '/';
+  }
+};
+
+async function wechatLogin() {
+  if (messageRef.value) {
+    messageRef.value.innerHTML = ''; 
+    window.removeEventListener('message', handleWechatMessage);
+    window.addEventListener('message', handleWechatMessage);
+
+    try {
+      await loadWxLoginScript();
+      const currentInviteCode = localStorage.getItem('invitationCode') || '';
+      const response = await fetch(`/api/wechat/qrcode?invitationCode=${currentInviteCode}`);
+      const data = await response.json();
+
+      if (data.appid && data.redirect_uri) {
+        new window.WxLogin({
+          self_redirect: false,
+          id: "wechat_qr_container",
+          appid: data.appid,
+          scope: "snsapi_login",
+          redirect_uri: data.redirect_uri,
+          state: data.state,
+          style: "",
+          href: customWechatStyle
+        });
+        console.log('二维码加载完成，等待扫码...');
+      }
+    } catch (error) {
+      console.error('微信登录初始化失败:', error);
+      toast.error('无法加载微信登录');
+    }
+  }
+}
 
 onMounted(async () => {
   // === 新增代码开始：捕获邀请码 ===
@@ -174,6 +270,10 @@ onMounted(async () => {
   if (invitationCode) {
     localStorage.setItem('invitationCode', invitationCode);
   }
+});
+
+onUnmounted(() => {
+  window.removeEventListener('message', handleWechatMessage);
 });
 
 </script>
@@ -312,6 +412,8 @@ onMounted(async () => {
   border-radius: 0.75rem;
   background-color: var(--field-bg);
   padding: 0.25rem;
+  position: relative;
+  z-index: 20; /* 确保在内容之上，防止被 iframe 或其它内容遮挡 */
 }
 
 .tab-btn {
@@ -419,15 +521,28 @@ onMounted(async () => {
   margin: 0 auto;
   border-radius: 0.75rem;
   display: flex; align-items: center; justify-content: center;
+  overflow: hidden; /* 防止 iframe 溢出遮挡其它元素 */
 }
 .qr-container img { width: 100%; height: 100%; object-fit: contain; }
 
 /* 响应式布局：小屏幕变垂直 */
 @media (max-width: 768px) {
-  .login-main-layout { flex-direction: column; max-width: 400px; }
-  .welcome-side { padding: 2rem; }
-  .mascot-img { max-width: 180px; }
-  .form-side { padding: 2rem; }
+  .login-main-layout { 
+    flex-direction: column; 
+    max-width: 100%; 
+    box-shadow: none;
+    background: transparent;
+  }
+  .welcome-side { display: none; }
+  .form-side { 
+    padding: 1.5rem; 
+    background-color: var(--card-bg);
+    border-radius: 1.5rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+  }
+  .login-container {
+    padding: 1rem;
+  }
 }
 
 /* 动画 */
@@ -441,6 +556,21 @@ onMounted(async () => {
   font-size: 0.85rem;
   color: #718096;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.privacy-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--primary-color);
+}
+
+.privacy-agreement label {
+  cursor: pointer;
 }
 
 .privacy-link {

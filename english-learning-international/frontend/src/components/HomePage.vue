@@ -1,7 +1,10 @@
 <template>
     <div class="split-layout" :class="{ 'dark': userStore.theme === 'dark' }">
-        
         <div class="left-panel">
+            <div class="china-notice-bar">
+                <span class="notice-icon">📢</span>
+                英文课程请前往 <a href="#" @click.prevent="goToChinaSite" class="notice-link">中国站</a>
+            </div>
             <canvas ref="canvasRef" width="800" height="600"></canvas>
         </div>
 
@@ -55,6 +58,20 @@
                                 <span v-if="activeTab === 'groups'" class="member-count"> | 成员: {{ item.memberCount || 0 }}</span>
                             </div>
                         </div>
+                        <!-- 加入按钮逻辑优化 -->
+                        <template v-if="activeTab === 'groups'">
+                            <button 
+                                v-if="!userStore.user.group || (userStore.user.group._id !== item._id && userStore.user.group !== item._id)" 
+                                class="join-btn" 
+                                :class="{ 'disabled-btn': userStore.user.group }"
+                                :title="userStore.user.group ? '您已加入其他班级' : '点击加入'"
+                                @click.stop="joinGroup(item._id)"
+                            >
+                                加入
+                            </button>
+                            <span v-else class="joined-tag">已在群</span>
+                        </template>
+
                         <svg v-if="item.rank <= 3" class="medal-icon" :class="`rank-${item.rank}`" viewBox="0 0 24 24">
                            <path d="M17 10.43V2H7v8.43c0 .35.18.68.49.86l4.51 2.6 4.51-2.6c.31-.18.49-.51.49-.86zM12 11L9 9.26 10.14 5h3.72L15 9.26 12 11zm-2 7h4v2h-4v-2zm2.5 4h-1v2h1v-2z"/>
                         </svg>
@@ -78,6 +95,7 @@
 import { ref, onMounted, onUnmounted, computed, inject, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { userStore } from '../store/user.js'; 
+import { useToast } from 'vue-toastification';
 
 const router = useRouter();
 
@@ -389,6 +407,64 @@ function switchTab(tab) {
   fetchLeaderboardData();
 }
 
+const toast = useToast();
+const fetchUserInfo = inject('fetchUserInfo');
+
+async function joinGroup(groupId) {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        toast.info('请先登录');
+        return;
+    }
+    try {
+        const response = await fetch(`/api/groups/${groupId}/join`, {
+            method: 'POST',
+            headers: { 'Authorization': token }
+        });
+        const data = await response.json();
+        if (response.ok) {
+            toast.success('成功加入班级！');
+            if (fetchUserInfo) await fetchUserInfo();
+            fetchLeaderboardData();
+        } else {
+            toast.error(data.message || '加入失败');
+        }
+    } catch (error) {
+        console.error('加入班级请求失败:', error);
+        toast.error('请求失败，请稍后重试');
+    }
+}
+
+const goToChinaSite = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = 'https://xuebubu.com';
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/sso/generate', {
+            method: 'POST',
+            headers: { 
+                'Authorization': token,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.sso_code) {
+                window.location.href = `https://xuebubu.com/login?sso_code=${data.sso_code}`;
+                return;
+            }
+        }
+        window.location.href = 'https://xuebubu.com';
+    } catch (error) {
+        console.error('SSO generation failed:', error);
+        window.location.href = 'https://xuebubu.com';
+    }
+};
+
 onUnmounted(() => {
     const setHeaderBgColor = inject('setHeaderBgColor');
     if (setHeaderBgColor) setHeaderBgColor('transparent');
@@ -407,14 +483,45 @@ onUnmounted(() => {
 .split-layout {
     display: flex;
     width: 100%;
-    height: 100vh; /* 强制为视口高度 */
+    height: 100vh;
     font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
     /* 默认浅色背景 */
     background-color: #fff8f5;
     overflow: hidden;
     transition: background-color 0.3s ease;
-    padding: 20px 40px; /* 稍微减小上下间距，保证显示面积 */
+    padding: 20px 40px;
     box-sizing: border-box;
+}
+
+/* 0. 容器布局 - 这里的 Notice Bar 现在局部显示 */
+.china-notice-bar {
+    position: absolute;
+    top: 20px;
+    left: 20px; /* 改为左对齐 */
+    background: rgba(255, 138, 101, 0.15); /* 更淡的背景 */
+    color: #ff7043;
+    padding: 6px 15px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 138, 101, 0.2);
+}
+
+.china-notice-bar .notice-link {
+    color: #ff7043;
+    text-decoration: underline;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.notice-icon {
+    font-size: 14px;
 }
 
 /* 🌑 暗夜模式 - 根背景 */
@@ -648,6 +755,54 @@ canvas {
     box-shadow: 0 2px 8px rgba(0,0,0,0.03);
     border: 1px solid #f5f5f5;
     transition: background-color 0.3s ease, border-color 0.3s ease;
+    position: relative;
+}
+
+.join-btn {
+    margin-left: auto;
+    margin-right: 10px;
+    background-color: #f48c25;
+    color: white;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    z-index: 2;
+}
+
+.join-btn:hover {
+    background-color: #e67e22;
+    transform: scale(1.05);
+}
+
+.join-btn:active {
+    transform: scale(0.95);
+}
+
+.join-btn.disabled-btn {
+    background-color: #ccc;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.join-btn.disabled-btn:hover {
+    background-color: #ccc;
+    transform: none;
+}
+
+.joined-tag {
+    margin-left: auto;
+    margin-right: 10px;
+    background-color: #dbece5;
+    color: #2c7a7b;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
 }
 
 /* 🌑 暗夜模式 - 列表项 */
@@ -741,5 +896,65 @@ canvas {
 /* 暗夜模式适配 */
 .split-layout.dark .site-footer {
     color: var(--text-secondary);
+}
+
+/* 📱 手机端适配 */
+@media (max-width: 768px) {
+    .split-layout {
+        flex-direction: column;
+        padding: 10px;
+        height: 100vh;
+    }
+
+    .left-panel {
+        display: none; /* 隐藏企鹅小电视 */
+    }
+
+    .right-panel {
+        padding: 10px;
+        height: 100%;
+    }
+
+    .trophy-icon {
+        width: 60px;
+        height: 60px;
+    }
+
+    .tabs {
+        margin-bottom: 10px;
+    }
+
+    .tab-item {
+        padding: 10px 0;
+        font-size: 14px;
+    }
+
+    .my-rank-card {
+        padding: 15px;
+    }
+    
+    .my-rank-info h3 {
+        font-size: 15px;
+    }
+    
+    .monster-avatar {
+        width: 60px;
+        height: 60px;
+    }
+
+    .rank-number {
+        font-size: 20px;
+        width: 30px;
+    }
+
+    .user-avatar {
+        width: 35px;
+        height: 35px;
+        margin-right: 10px;
+    }
+
+    .rank-name {
+        font-size: 14px;
+    }
 }
 </style>
